@@ -1,0 +1,293 @@
+- id: RN-PERF-001
+  title: Use FlatList or FlashList with getItemLayout for long scrollable lists
+  layer: react-native
+  category: perf
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor]
+  rule: >
+    Never render unbounded dynamic lists inside `ScrollView`. Use `FlatList` or Shopify `FlashList`
+    with `getItemLayout` for fixed-height items.
+  rationale: >
+    ScrollView renders all child elements simultaneously into memory, causing massive memory bloat and frame drops.
+  good: |
+    <FlatList data={items} keyExtractor={item => item.id} renderItem={renderItem} getItemLayout={getItemLayout} />
+  bad: |
+    <ScrollView>{items.map(item => <ItemCard key={item.id} item={item} />)}</ScrollView>
+  verify:
+    type: eslint
+  tags: [react-native, performance, flatlist]
+  since: "0.1.0"
+
+- id: RN-SEC-001
+  title: Store sensitive credentials in SecureStore or Keychain, never AsyncStorage
+  layer: react-native
+  category: security
+  severity: critical
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Store auth tokens, refresh tokens, and biometric credentials in encrypted storage
+    (`expo-secure-store` or `react-native-keychain`). Never store secrets in plain-text `AsyncStorage`.
+  rationale: >
+    AsyncStorage is unencrypted on device storage and easily extracted from rooted/jailbroken devices or backup files.
+  good: |
+    await SecureStore.setItemAsync("auth_token", token);
+  bad: |
+    await AsyncStorage.setItem("auth_token", token);
+  verify:
+    type: checklist
+    prompt: Confirm authentication credentials are saved in SecureStore/Keychain, not AsyncStorage.
+  tags: [react-native, security, storage]
+  since: "0.1.0"
+
+- id: RN-ANIM-001
+  title: Run animations on the native UI thread with useNativeDriver or Reanimated
+  layer: react-native
+  category: perf
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor]
+  rule: >
+    When using the Animated API, set `useNativeDriver: true` for non-layout properties (opacity, transform).
+    For complex gestures and layout animations, use `react-native-reanimated`.
+  rationale: >
+    Animations running over the JavaScript bridge stutter whenever the JS thread is busy processing data.
+  good: |
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+  bad: |
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
+  verify:
+    type: eslint
+  tags: [react-native, animations, performance]
+  since: "0.1.0"
+
+- id: RN-TOUCH-001
+  title: Use Pressable with pressed state styling over legacy TouchableOpacity
+  layer: react-native
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor]
+  rule: >
+    Build interactive UI using the modern `Pressable` component rather than legacy `TouchableOpacity`.
+  rationale: >
+    Pressable offers better multi-touch handling, hover support, press retention, and custom press state styling.
+  good: |
+    <Pressable style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]} onPress={onPress}>
+      <Text>Action</Text>
+    </Pressable>
+  bad: |
+    <TouchableOpacity onPress={onPress}><Text>Action</Text></TouchableOpacity>
+  verify:
+    type: checklist
+    prompt: Verify interactive buttons use Pressable.
+  tags: [react-native, ui, pressable]
+  since: "0.1.0"
+
+- id: RN-SAFE-001
+  title: Handle device safe areas using react-native-safe-area-context
+  layer: react-native
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, new-project]
+  rule: >
+    Wrap screens using `SafeAreaProvider` and `SafeAreaView` from `react-native-safe-area-context`.
+  rationale: >
+    Prevents content from being hidden behind camera notches, status bars, and rounded device corners.
+  good: |
+    import { SafeAreaView } from "react-native-safe-area-context";
+    <SafeAreaView edges={["top", "bottom"]} style={styles.container}>{children}</SafeAreaView>
+  bad: |
+    <View style={{ flex: 1 }}>{children}</View> // clipped by notch
+  verify:
+    type: checklist
+    prompt: Confirm screen roots use SafeAreaView from react-native-safe-area-context.
+  tags: [react-native, layout, safe-area]
+  since: "0.1.0"
+
+- id: RN-KEYB-001
+  title: Protect inputs from on-screen keyboards with KeyboardAvoidingView
+  layer: react-native
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor]
+  rule: >
+    Enclose input forms within `KeyboardAvoidingView` or `react-native-keyboard-aware-scroll-view`.
+  rationale: >
+    On mobile devices, virtual keyboards open over input fields, making it impossible for users to see what they type.
+  good: |
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <TextInput placeholder="Email" />
+    </KeyboardAvoidingView>
+  bad: |
+    <View><TextInput placeholder="Email" /></View>
+  verify:
+    type: checklist
+    prompt: Confirm form inputs are protected with KeyboardAvoidingView.
+  tags: [react-native, keyboard, forms]
+  since: "0.1.0"
+
+- id: RN-PLAT-001
+  title: Isolate platform differences with Platform.select or platform file extensions
+  layer: react-native
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor]
+  rule: >
+    Use `Platform.select({ ios: ..., android: ... })` or split complex components into
+    `Component.ios.tsx` and `Component.android.tsx`.
+  rationale: >
+    Prevents messy chains of `if (Platform.OS === 'ios')` and keeps platform-specific code cleanly segregated.
+  good: |
+    const shadow = Platform.select({
+      ios: { shadowColor: "#000", shadowOpacity: 0.1 },
+      android: { elevation: 3 },
+    });
+  bad: |
+    let shadow = {};
+    if (Platform.OS === "ios") shadow = { shadowOpacity: 0.1 };
+    else shadow = { elevation: 3 };
+  verify:
+    type: checklist
+    prompt: Confirm platform differences use Platform.select or platform extensions.
+  tags: [react-native, platform]
+  since: "0.1.0"
+
+- id: RN-NAV-001
+  title: Type React Navigation parameter lists strictly
+  layer: react-native
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Define explicit TypeScript types for navigation route parameter lists (e.g. `RootStackParamList`).
+  rationale: >
+    Prevents runtime crashes caused by navigating to nonexistent routes or passing incorrect route params.
+  good: |
+    export type RootStackParamList = { Home: undefined; Profile: { userId: string } };
+    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  bad: |
+    const navigation = useNavigation(); // untyped, allows any string and param shape
+  verify:
+    type: checklist
+    prompt: Verify navigation stack route parameters are typed with TypeScript interfaces.
+  tags: [react-native, navigation, typescript]
+  since: "0.1.0"
+
+- id: RN-NET-001
+  title: Handle network loss and offline state gracefully
+  layer: react-native
+  category: ops
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor]
+  rule: >
+    Monitor connection changes via `@react-native-community/netinfo` and display informative offline banners
+    or cache responses locally.
+  rationale: >
+    Mobile devices frequently move through tunnels, poor signal, or airplane mode.
+  good: |
+    const netInfo = useNetInfo();
+    if (!netInfo.isConnected) return <OfflineBanner />;
+  bad: |
+    // Failing silently with raw network errors on failed fetch
+  verify:
+    type: checklist
+    prompt: Confirm application informs users of offline connectivity state.
+  tags: [react-native, offline, resilience]
+  since: "0.1.0"
+
+- id: RN-IMG-001
+  title: Specify explicit dimensions for local and remote images
+  layer: react-native
+  category: perf
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, refactor]
+  rule: >
+    Always set `width` and `height` styles or aspect ratios on `Image` and `expo-image` components.
+  rationale: >
+    Images without explicit dimensions collapse to 0x0 or cause severe layout shift during load.
+  good: |
+    <Image source={{ uri }} style={{ width: 120, height: 120 }} />
+  bad: |
+    <Image source={{ uri }} />
+  verify:
+    type: checklist
+    prompt: Confirm images specify explicit width and height dimensions.
+  tags: [react-native, images, layout]
+  since: "0.1.0"
+
+- id: RN-LOG-001
+  title: Strip console statements in production release builds
+  layer: react-native
+  category: perf
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, new-project]
+  rule: >
+    Configure babel with `babel-plugin-transform-remove-console` in production environment configs.
+  rationale: >
+    Synchronous `console.log` statements degrade JavaScript bridge performance noticeably in release builds.
+  good: |
+    // babel.config.js
+    plugins: process.env.NODE_ENV === "production" ? ["transform-remove-console"] : []
+  bad: |
+    // Shipping unstripped console logs in app store release
+  verify:
+    type: checklist
+    prompt: Confirm console statements are stripped in production builds.
+  tags: [react-native, logging, performance]
+  since: "0.1.0"
+
+- id: RN-TEST-001
+  title: Test React Native components with React Native Testing Library
+  layer: react-native
+  category: testing
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react-native]
+    tasks: [feature, testing]
+  rule: >
+    Write component unit tests using `@testing-library/react-native` asserting accessibility labels, texts, and user taps.
+  rationale: >
+    Ensures screens render properly without running full emulator integration suites for every commit.
+  good: |
+    render(<ProfileScreen user={mockUser} />);
+    fireEvent.press(screen.getByText("Edit Profile"));
+    expect(screen.getByText("Save Changes")).toBeTruthy();
+  bad: |
+    // No component tests
+  verify:
+    type: checklist
+    prompt: Confirm React Native screen components have unit tests.
+  tags: [react-native, testing, rntl]
+  since: "0.1.0"

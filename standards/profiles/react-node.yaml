@@ -1,0 +1,9 @@
+id: react-node
+layers:
+  - universal
+  - security
+  - testing
+  - api-design
+  - observability
+  - react
+  - node-express

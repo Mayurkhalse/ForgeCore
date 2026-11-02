@@ -1,0 +1,309 @@
+- id: NODE-ARCH-001
+  title: Decouple Express route routing, request controllers, and business services
+  layer: node-express
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Keep route definitions (`routes/`), request parsing/formatting (`controllers/`),
+    and domain business logic (`services/`) in separate files.
+  rationale: >
+    Mixing business computations into Express route callbacks destroys testability and modularity.
+  good: |
+    // routes/user.js
+    router.post("/users", userController.create);
+    // controllers/user.js
+    export const create = async (req, res, next) => {
+      const user = await userService.createUser(req.body);
+      res.status(201).json(user);
+    };
+  bad: |
+    router.post("/users", async (req, res) => {
+      // 50 lines of business validation, hashing, SQL queries
+      db.query("INSERT INTO users ...");
+    });
+  verify:
+    type: checklist
+    prompt: Confirm route routing, controller parsing, and service logic are decoupled.
+  tags: [node, express, architecture]
+  since: "0.1.0"
+
+- id: NODE-ERR-001
+  title: Register centralized 4-parameter error-handling middleware
+  layer: node-express
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Define a terminal error-handling middleware function with exactly four parameters: `(err, req, res, next)`.
+    Map errors to structured status codes and log the stack trace server-side.
+  rationale: >
+    Express identifies error handlers strictly by 4-parameter arity. Missing error middleware crashes the Node process.
+  good: |
+    app.use((err, req, res, next) => {
+      logger.error(err);
+      res.status(err.status || 500).json({ error: { message: err.message } });
+    });
+  bad: |
+    app.use((err, req, res) => { ... }); // 3 arguments: Express treats as regular middleware!
+  verify:
+    type: checklist
+    prompt: Confirm terminal error handler has 4 parameters (err, req, res, next).
+  tags: [node, express, error-handling]
+  since: "0.1.0"
+
+- id: NODE-ASYNC-001
+  title: Catch unhandled rejections in async route handlers
+  layer: node-express
+  category: architecture
+  severity: critical
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    In Express 4, wrap asynchronous route handlers with `try/catch (err) { next(err); }`
+    or use a wrapper helper / `express-async-errors`.
+  rationale: >
+    Uncaught promise rejections in Express 4 cause requests to hang indefinitely until client timeout.
+  good: |
+    router.get("/items", asyncHandler(async (req, res) => {
+      const items = await itemService.getAll();
+      res.json(items);
+    }));
+  bad: |
+    router.get("/items", async (req, res) => {
+      const items = await itemService.getAll(); // if this throws, request hangs!
+      res.json(items);
+    });
+  verify:
+    type: eslint
+  tags: [node, async, express]
+  since: "0.1.0"
+
+- id: NODE-SEC-001
+  title: Enforce HTTP security headers with helmet
+  layer: node-express
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, new-project]
+  rule: >
+    Mount `helmet()` middleware near the top of the Express application middleware chain.
+  rationale: >
+    Helmet sets sensible HTTP headers protecting against clickjacking, MIME sniffing, and cross-site scripting.
+  good: |
+    import helmet from "helmet";
+    app.use(helmet());
+  bad: |
+    const app = express();
+    // No helmet security middleware
+  verify:
+    type: checklist
+    prompt: Confirm helmet() middleware is registered.
+  tags: [node, security, helmet]
+  since: "0.1.0"
+
+- id: NODE-SEC-002
+  title: Restrict Cross-Origin Resource Sharing (CORS) origins
+  layer: node-express
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Configure CORS with explicit allowed origins. Never use `origin: "*"` combined with `credentials: true`.
+  rationale: >
+    Wildcard origin with credentials allows any third-party malicious website to execute authenticated requests.
+  good: |
+    app.use(cors({ origin: ["https://app.example.com"], credentials: true }));
+  bad: |
+    app.use(cors({ origin: "*", credentials: true }));
+  verify:
+    type: checklist
+    prompt: Confirm CORS is restricted to allowed origins when credentials are enabled.
+  tags: [node, security, cors]
+  since: "0.1.0"
+
+- id: NODE-INP-001
+  title: Validate request payloads with schema validators (Zod/Joi)
+  layer: node-express
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, refactor]
+  rule: >
+    Validate `req.body`, `req.query`, and `req.params` against a strict schema (e.g. Zod schema)
+    before processing.
+  rationale: >
+    Prevents unexpected type coercion, NoSQL injection, and malformed parameter errors.
+  good: |
+    const parsed = createUserSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.issues });
+  bad: |
+    const { email, password } = req.body;
+  verify:
+    type: checklist
+    prompt: Confirm request body and queries are validated against schemas.
+  tags: [node, validation, zod]
+  since: "0.1.0"
+
+- id: NODE-RATE-001
+  title: Implement rate limiting on sensitive and authentication endpoints
+  layer: node-express
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, new-project]
+  rule: >
+    Apply rate-limiting middleware (such as `express-rate-limit`) to login, register, password reset,
+    and public API endpoints.
+  rationale: >
+    Prevents brute-force credential stuffing and denial of service attacks.
+  good: |
+    const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+    router.post("/login", authLimiter, loginHandler);
+  bad: |
+    router.post("/login", loginHandler);
+  verify:
+    type: checklist
+    prompt: Confirm rate-limiting is attached to authentication routes.
+  tags: [node, rate-limiting, security]
+  since: "0.1.0"
+
+- id: NODE-ENV-001
+  title: Validate environment variables on startup
+  layer: node-express
+  category: ops
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, new-project]
+  rule: >
+    Parse and validate `process.env` through a Zod schema during initialization. Exit immediately
+    with a helpful message if required configurations are missing.
+  rationale: >
+    Prevents silent failures deep in execution when an unconfigured service key is accessed.
+  good: |
+    const envSchema = z.object({ PORT: z.coerce.number().default(3000), DB_URL: z.string().url() });
+    export const env = envSchema.parse(process.env);
+  bad: |
+    const port = process.env.PORT || 3000;
+  verify:
+    type: checklist
+    prompt: Confirm environment variables are validated with a schema at startup.
+  tags: [node, configuration, env]
+  since: "0.1.0"
+
+- id: NODE-LOG-001
+  title: Use structured logging libraries rather than console.log
+  layer: node-express
+  category: ops
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Use a structured logging library like `pino` or `winston` formatted as JSON. Avoid `console.log`.
+  rationale: >
+    Structured logs capture timestamps, log levels, and request context in machine-searchable formats.
+  good: |
+    logger.info({ userId: user.id }, "User created");
+  bad: |
+    console.log("User created: " + user.id);
+  verify:
+    type: eslint
+  tags: [node, logging, observability]
+  since: "0.1.0"
+
+- id: NODE-OPS-001
+  title: Handle graceful shutdown on process termination signals
+  layer: node-express
+  category: ops
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, new-project]
+  rule: >
+    Listen for `SIGTERM` and `SIGINT` signals. Close the HTTP server and database connections gracefully,
+    allowing in-flight requests to complete.
+  rationale: >
+    Abrupt termination drops active client connections and may corrupt in-flight transactions during rolling deploys.
+  good: |
+    process.on("SIGTERM", () => {
+      server.close(() => { db.close(); process.exit(0); });
+    });
+  bad: |
+    // No signal listeners; process terminates immediately on SIGTERM
+  verify:
+    type: checklist
+    prompt: Confirm SIGTERM / SIGINT handlers gracefully close server and database connections.
+  tags: [node, ops, graceful-shutdown]
+  since: "0.1.0"
+
+- id: NODE-TEST-001
+  title: Test API routes with Supertest integration tests
+  layer: node-express
+  category: testing
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, bugfix, testing]
+  rule: >
+    Verify HTTP endpoints using `supertest(app)` asserting status codes, headers, and response bodies.
+  rationale: >
+    Ensures middleware, routing, serialization, and error handling work together under real HTTP conditions.
+  good: |
+    const res = await request(app).post("/api/items").send({ name: "Widget" });
+    expect(res.status).toBe(201);
+  bad: |
+    // Calling controller function directly with fake req/res
+    const res = { status: vi.fn(), json: vi.fn() };
+    await itemController.create({ body: { name: "Widget" } }, res);
+  verify:
+    type: checklist
+    prompt: Verify API endpoints are tested using Supertest or equivalent HTTP client.
+  tags: [node, testing, supertest]
+  since: "0.1.0"
+
+- id: NODE-MEM-001
+  title: Avoid memory leaks from global event listeners and unclosed streams
+  layer: node-express
+  category: perf
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [node-express]
+    tasks: [feature, bugfix]
+  rule: >
+    Never add listeners to `process` or singleton event emitters inside per-request callbacks.
+    Always pipe streams with `pipeline()` from `stream/promises`.
+  rationale: >
+    Accumulating listeners per request exhausts Node's heap memory and leads to out-of-memory crashes.
+  good: |
+    await pipeline(readStream, writeStream);
+  bad: |
+    readStream.pipe(writeStream); // unhandled error events leak file handles
+  verify:
+    type: checklist
+    prompt: Confirm streams and event listeners are safely managed without per-request leaks.
+  tags: [node, memory, performance]
+  since: "0.1.0"

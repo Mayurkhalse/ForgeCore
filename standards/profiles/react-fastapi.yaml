@@ -1,0 +1,9 @@
+id: react-fastapi
+layers:
+  - universal
+  - security
+  - testing
+  - api-design
+  - observability
+  - react
+  - fastapi

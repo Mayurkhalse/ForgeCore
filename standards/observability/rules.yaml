@@ -1,0 +1,23 @@
+- id: OBS-LOG-001
+  title: Use structured JSON logging with correlation and request IDs
+  layer: observability
+  category: ops
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [observability]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Log events using structured key-value pairs (JSON format) and include a correlation or request ID
+    propagated through HTTP headers.
+  rationale: >
+    Unstructured string logs are difficult to parse, search, and aggregate across distributed cloud environments.
+  good: |
+    logger.info("Order processed successfully", extra={"order_id": order.id, "user_id": user.id})
+  bad: |
+    print(f"Processed order {order.id} for user {user.id}")
+  verify:
+    type: checklist
+    prompt: Check that structured logging is used instead of print statements.
+  tags: [observability, logging]
+  since: "0.1.0"

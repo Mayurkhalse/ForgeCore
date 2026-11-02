@@ -1,0 +1,5 @@
+
+AWS_SECRET_ACCESS_KEY = "AKIA1234567890ABCDEF"
+
+def get_secret():
+    return AWS_SECRET_ACCESS_KEY

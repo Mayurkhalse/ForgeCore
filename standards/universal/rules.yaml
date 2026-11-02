@@ -1,0 +1,100 @@
+- id: UNI-ARCH-001
+  title: Maintain strict separation of concerns across architectural layers
+  layer: universal
+  category: architecture
+  severity: high
+  tier: core
+  applies_when:
+    layers: [universal]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Route handlers, controllers, and UI views must never execute raw database queries
+    or business computations directly. Delegate all domain operations to isolated services.
+  rationale: >
+    Coupling transport logic with business logic destroys testability and causes duplicated domain logic.
+  good: |
+    # Handler maps transport request to service call
+    res = await order_service.process_order(order_payload)
+  bad: |
+    # Direct DB execution in transport handler
+    db.execute(f"INSERT INTO orders VALUES ('{req.id}')")
+  verify:
+    type: checklist
+    prompt: Confirm no database queries or complex domain calculations exist in entrypoint handlers.
+  tags: [layering, architecture, testability]
+  since: "0.1.0"
+
+- id: UNI-SEC-001
+  title: Never commit hardcoded secrets, credentials, or keys
+  layer: universal
+  category: security
+  severity: critical
+  tier: core
+  applies_when:
+    layers: [universal]
+    tasks: [feature, bugfix, refactor, new-project]
+  rule: >
+    Credentials, tokens, private keys, and passwords must be injected via environment variables
+    or a dedicated secrets manager. Never commit plain-text credentials to version control.
+  rationale: >
+    Committed secrets lead to unauthorized access, breach of confidential systems, and severe compliance failures.
+  good: |
+    api_key = os.environ["STRIPE_API_KEY"]
+  bad: |
+    api_key = "sk_live_51ABC1234567890XYZ"
+  verify:
+    type: secrets
+  tags: [security, credentials, secrets]
+  since: "0.1.0"
+
+- id: UNI-TEST-001
+  title: All behavior changes must be covered by automated tests
+  layer: universal
+  category: testing
+  severity: high
+  tier: core
+  applies_when:
+    layers: [universal]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    Every newly added feature, bug fix, or refactored component must include corresponding unit
+    or integration tests asserting expected outcomes and edge cases.
+  rationale: >
+    Untested code inevitably regresses over time and leaves no executable documentation of intended behavior.
+  good: |
+    def test_calculate_discount_with_coupon():
+        assert calculate_discount(100, coupon="SAVE20") == 80
+  bad: |
+    # Code written without tests
+    def calculate_discount(amount, coupon):
+        ...
+  verify:
+    type: checklist
+    prompt: Verify automated tests were written or updated for this change.
+  tags: [testing, quality]
+  since: "0.1.0"
+
+- id: UNI-OPS-001
+  title: Manage resources deterministically with context managers
+  layer: universal
+  category: ops
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [universal]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    Always manage file descriptors, network connections, locks, and database transactions using
+    deterministic context managers or explicit try-finally blocks.
+  rationale: >
+    Failing to close handles leads to file locking, socket exhaustion, and connection pool leaks.
+  good: |
+    with open("data.json", "r") as f:
+        data = json.load(f)
+  bad: |
+    f = open("data.json")
+    data = json.load(f)
+  verify:
+    type: ruff
+  tags: [resources, reliability]
+  since: "0.1.0"

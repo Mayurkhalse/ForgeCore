@@ -1,0 +1,7 @@
+id: react-native
+layers:
+  - universal
+  - security
+  - testing
+  - api-design
+  - react-native

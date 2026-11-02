@@ -1,0 +1,54 @@
+- id: API-ERR-001
+  title: Return structured and predictable error payloads with error codes
+  layer: api-design
+  category: api
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [api-design]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    All API error responses must return standard JSON containing code, message, and details fields.
+    Never return raw stack traces or internal exception representations to the client.
+  rationale: >
+    Consistent error structures enable predictable client handling and prevent accidental sensitive data disclosure.
+  good: |
+    return JSONResponse(
+        status_code=400,
+        content={"error": {"code": "INVALID_COUPON", "message": "Coupon code has expired"}}
+    )
+  bad: |
+    return JSONResponse(status_code=500, content={"error": str(exception)})
+  verify:
+    type: checklist
+    prompt: Confirm API error responses use structured error contracts without leaking stack traces.
+  tags: [api, error-handling, contracts]
+  since: "0.1.0"
+
+- id: API-PAG-001
+  title: Enforce pagination and maximum page limits on collection endpoints
+  layer: api-design
+  category: api
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [api-design]
+    tasks: [feature, refactor]
+  rule: >
+    Endpoints returning lists or collections must support limit/offset or cursor pagination,
+    with an enforced hard maximum limit (e.g. max 100 items).
+  rationale: >
+    Unbounded list endpoints cause memory exhaustion and denial of service as table sizes grow.
+  good: |
+    @router.get("/items")
+    def list_items(limit: int = Query(default=20, le=100), offset: int = Query(default=0, ge=0)):
+        ...
+  bad: |
+    @router.get("/items")
+    def list_items():
+        return db.query(Item).all()
+  verify:
+    type: checklist
+    prompt: Confirm pagination is implemented with max limits on collection endpoints.
+  tags: [api, performance, pagination]
+  since: "0.1.0"

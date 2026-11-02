@@ -1,0 +1,75 @@
+- id: SEC-INP-001
+  title: Validate and sanitize all external inputs at the boundary
+  layer: security
+  category: security
+  severity: critical
+  tier: core
+  applies_when:
+    layers: [security]
+    tasks: [feature, bugfix, refactor, new-project]
+  rule: >
+    Every input originating outside the application boundary (request bodies, query params, headers, files)
+    must be strongly typed and validated before reaching business logic.
+  rationale: >
+    Unvalidated inputs permit SQL injection, cross-site scripting (XSS), command injection, and logic bypass.
+  good: |
+    class CreateItemRequest(BaseModel):
+        name: str = Field(min_length=1, max_length=100)
+        price: float = Field(gt=0)
+  bad: |
+    @app.post("/items")
+    def create_item(payload: dict):
+        item_name = payload["name"]
+  verify:
+    type: checklist
+    prompt: Confirm schema-based input validation is enforced for all external endpoints.
+  tags: [security, input-validation]
+  since: "0.1.0"
+
+- id: SEC-SQL-001
+  title: Prevent SQL injection with parameterized queries
+  layer: security
+  category: security
+  severity: critical
+  tier: core
+  applies_when:
+    layers: [security]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    Never concatenate or interpolate user-supplied data directly into SQL query strings.
+    Use parameterized queries or ORM expression builders.
+  rationale: >
+    String concatenation in SQL queries allows arbitrary SQL execution and total database compromise.
+  good: |
+    cursor.execute("SELECT * FROM users WHERE email = :email", {"email": email})
+  bad: |
+    cursor.execute(f"SELECT * FROM users WHERE email = '{email}'")
+  verify:
+    type: semgrep
+    ref: standards/verifiers/semgrep/security-rules.yaml
+  tags: [security, sql-injection, database]
+  since: "0.1.0"
+
+- id: SEC-AUTH-001
+  title: Hash passwords using secure, salted algorithms (Argon2 or bcrypt)
+  layer: security
+  category: security
+  severity: critical
+  tier: standard
+  applies_when:
+    layers: [security]
+    tasks: [feature, refactor]
+  rule: >
+    Never store plain-text passwords or use deprecated hash functions like MD5 or SHA1.
+    Use modern work-factor hashes such as Argon2id or bcrypt with an appropriate cost factor.
+  rationale: >
+    Fast or unsalted hashes allow rainbow table and GPU-accelerated dictionary attacks on compromised databases.
+  good: |
+    password_hash = pwd_context.hash(plain_password)
+  bad: |
+    password_hash = hashlib.md5(plain_password.encode()).hexdigest()
+  verify:
+    type: checklist
+    prompt: Verify that password hashing uses bcrypt or Argon2 with adequate work factor.
+  tags: [security, auth, passwords]
+  since: "0.1.0"

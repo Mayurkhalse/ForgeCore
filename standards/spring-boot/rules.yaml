@@ -1,0 +1,336 @@
+- id: SB-ARCH-001
+  title: Maintain Controller -> Service -> Repository layered architecture
+  layer: spring-boot
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Controllers only handle HTTP routing and validation. Business logic must be encapsulated in
+    `@Service` classes, and database persistence in `@Repository` interfaces.
+  rationale: >
+    Maintains clean boundaries, prevents database queries inside web layers, and enables focused unit testing.
+  good: |
+    @RestController
+    @RequestMapping("/users")
+    public class UserController {
+        private final UserService userService;
+        public UserController(UserService userService) { this.userService = userService; }
+        @PostMapping
+        public UserResponse create(@Valid @RequestBody UserCreateDto dto) {
+            return userService.createUser(dto);
+        }
+    }
+  bad: |
+    @RestController
+    public class UserController {
+        @Autowired private UserRepository userRepo;
+        @PostMapping("/users")
+        public User create(@RequestBody User user) { return userRepo.save(user); }
+    }
+  verify:
+    type: checklist
+    prompt: Confirm controllers delegate to services rather than accessing repositories directly.
+  tags: [spring, architecture, layering]
+  since: "0.1.0"
+
+- id: SB-ARCH-002
+  title: Use constructor injection instead of field @Autowired
+  layer: spring-boot
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, refactor]
+  rule: >
+    Inject bean dependencies via constructor parameters with `final` fields. Avoid `@Autowired` on private fields.
+  rationale: >
+    Enables immutability, prevents circular dependency loops, and allows plain instantiation in unit tests without reflection.
+  good: |
+    @Service
+    public class OrderService {
+        private final PaymentGateway paymentGateway;
+        public OrderService(PaymentGateway paymentGateway) { this.paymentGateway = paymentGateway; }
+    }
+  bad: |
+    @Service
+    public class OrderService {
+        @Autowired private PaymentGateway paymentGateway;
+    }
+  verify:
+    type: checklist
+    prompt: Confirm dependencies are injected via constructors into final fields.
+  tags: [spring, dependency-injection]
+  since: "0.1.0"
+
+- id: SB-DATA-001
+  title: Eliminate N+1 query problem with JOIN FETCH or EntityGraph
+  layer: spring-boot
+  category: perf
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, refactor]
+  rule: >
+    When querying entities with `@OneToMany` or `@ManyToMany` relationships, use `JOIN FETCH` in JPQL
+    or declare `@EntityGraph` to load relations eagerly in a single SQL query.
+  rationale: >
+    Lazy-loading in loops generates N+1 queries, degrading database performance and causing latency spikes.
+  good: |
+    @Query("SELECT o FROM Order o JOIN FETCH o.items WHERE o.customer.id = :customerId")
+    List<Order> findCustomerOrdersWithItems(@Param("customerId") Long id);
+  bad: |
+    List<Order> orders = orderRepo.findByCustomerId(id);
+    for (Order o : orders) { o.getItems().size(); } // executes N queries
+  verify:
+    type: checklist
+    prompt: Verify collection relationships in JPA queries use JOIN FETCH or @EntityGraph.
+  tags: [spring, jpa, performance, database]
+  since: "0.1.0"
+
+- id: SB-DATA-002
+  title: Mark read-only queries with @Transactional(readOnly = true)
+  layer: spring-boot
+  category: perf
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, refactor]
+  rule: >
+    Annotate read-only service methods with `@Transactional(readOnly = true)`.
+  rationale: >
+    Allows Hibernate to disable dirty checking and database drivers to route queries to read replicas.
+  good: |
+    @Transactional(readOnly = true)
+    public UserDto findById(Long id) { return userRepo.findById(id)...; }
+  bad: |
+    @Transactional
+    public UserDto findById(Long id) { return userRepo.findById(id)...; }
+  verify:
+    type: checklist
+    prompt: Confirm read-only service operations specify readOnly = true on @Transactional.
+  tags: [spring, transactions, jpa]
+  since: "0.1.0"
+
+- id: SB-INP-001
+  title: Validate request DTOs using @Valid and Bean Validation constraints
+  layer: spring-boot
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, refactor]
+  rule: >
+    Always annotate `@RequestBody` parameters with `@Valid` and decorate DTO fields with validation
+    annotations (`@NotNull`, `@NotBlank`, `@Size`, `@Pattern`).
+  rationale: >
+    Stops invalid or malicious payloads at the web entry point before executing database transactions.
+  good: |
+    public record CreateUserRequest(@NotBlank @Email String email, @Size(min = 8) String password) {}
+    @PostMapping public ResponseEntity<?> create(@Valid @RequestBody CreateUserRequest req) { ... }
+  bad: |
+    @PostMapping public ResponseEntity<?> create(@RequestBody CreateUserRequest req) { ... }
+  verify:
+    type: checklist
+    prompt: Verify incoming DTO parameters in controllers are validated with @Valid.
+  tags: [spring, validation, security]
+  since: "0.1.0"
+
+- id: SB-ERR-001
+  title: Centralize exception handling using @RestControllerAdvice
+  layer: spring-boot
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, new-project]
+  rule: >
+    Handle exceptions uniformly with a `@RestControllerAdvice` class declaring `@ExceptionHandler` methods.
+    Return standard error response structures (e.g. ProblemDetail or custom ErrorResponse).
+  rationale: >
+    Prevents scattered try-catch blocks in controllers and ensures consistent error formats across the API.
+  good: |
+    @RestControllerAdvice
+    public class GlobalExceptionHandler {
+        @ExceptionHandler(EntityNotFoundException.class)
+        public ProblemDetail handleNotFound(EntityNotFoundException ex) {
+            return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        }
+    }
+  bad: |
+    // Returning raw exceptions or stack traces to clients
+  verify:
+    type: checklist
+    prompt: Confirm @RestControllerAdvice is configured for consistent error handling.
+  tags: [spring, error-handling]
+  since: "0.1.0"
+
+- id: SB-SEC-001
+  title: Configure Spring Security with explicit SecurityFilterChain beans
+  layer: spring-boot
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, new-project]
+  rule: >
+    Define security configuration using modern component-based `SecurityFilterChain` beans.
+    Avoid deprecated `WebSecurityConfigurerAdapter`.
+  rationale: >
+    Spring Security 6+ removed adapter classes in favor of component-based filter chains.
+  good: |
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http.authorizeHttpRequests(auth -> auth.requestMatchers("/public/**").permitAll().anyRequest().authenticated()).build();
+    }
+  bad: |
+    public class SecurityConfig extends WebSecurityConfigurerAdapter { ... }
+  verify:
+    type: checklist
+    prompt: Confirm SecurityFilterChain bean is used instead of deprecated adapters.
+  tags: [spring, security]
+  since: "0.1.0"
+
+- id: SB-SEC-002
+  title: Enforce method-level security with @PreAuthorize
+  layer: spring-boot
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, refactor]
+  rule: >
+    Use `@PreAuthorize("hasRole('ADMIN')")` or custom permission evaluators to protect sensitive business operations.
+  rationale: >
+    URL-based security alone often misses fine-grained multi-tenant or role authorization rules.
+  good: |
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.id")
+    public void deleteUser(Long userId) { ... }
+  bad: |
+    public void deleteUser(Long userId) { ... } // no authorization check
+  verify:
+    type: checklist
+    prompt: Verify sensitive service methods are protected with @PreAuthorize or similar guards.
+  tags: [spring, authorization, rbac]
+  since: "0.1.0"
+
+- id: SB-CONF-001
+  title: Group configuration properties into type-safe @ConfigurationProperties classes
+  layer: spring-boot
+  category: ops
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, new-project]
+  rule: >
+    Map `application.yml` properties into `@ConfigurationProperties` classes with `@Validated` checks,
+    rather than scattering `@Value("${...}")` across the codebase.
+  rationale: >
+    Provides hierarchical typing, IDE autocompletion, and validation at startup for missing configurations.
+  good: |
+    @ConfigurationProperties(prefix = "app.mail")
+    @Validated
+    public record MailProperties(@NotBlank String host, @Min(1) int port) {}
+  bad: |
+    @Value("${app.mail.host}") private String host;
+  verify:
+    type: checklist
+    prompt: Confirm configuration groups use @ConfigurationProperties with validation.
+  tags: [spring, configuration]
+  since: "0.1.0"
+
+- id: SB-LOG-001
+  title: Log using SLF4J abstractions rather than System.out or printStackTrace
+  layer: spring-boot
+  category: ops
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, refactor]
+  rule: >
+    Use `LoggerFactory.getLogger(...)` or `@Slf4j` (Lombok) to record log statements.
+    Never invoke `System.out.println()` or `e.printStackTrace()`.
+  rationale: >
+    Direct console output bypasses log formatters, log rotation, and centralized log aggregation.
+  good: |
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+    log.info("Processing order id={}", orderId);
+  bad: |
+    System.out.println("Processing order: " + orderId);
+  verify:
+    type: checklist
+    prompt: Confirm SLF4J is used for all logging without stdout statements.
+  tags: [spring, logging, observability]
+  since: "0.1.0"
+
+- id: SB-TEST-001
+  title: Use sliced testing annotations for focused, fast tests
+  layer: spring-boot
+  category: testing
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, testing]
+  rule: >
+    Use `@WebMvcTest` for web controller slice tests and `@DataJpaTest` for database repository tests.
+    Reserve full `@SpringBootTest` for end-to-end integration flows.
+  rationale: >
+    Bootstrapping the entire Spring context for every small test drastically slows down the test suite.
+  good: |
+    @WebMvcTest(UserController.class)
+    class UserControllerTest {
+        @Autowired private MockMvc mockMvc;
+        @MockBean private UserService userService;
+    }
+  bad: |
+    @SpringBootTest // loads whole context for single endpoint unit test
+    class UserControllerTest { ... }
+  verify:
+    type: checklist
+    prompt: Confirm slice annotations (@WebMvcTest, @DataJpaTest) are used where appropriate.
+  tags: [spring, testing, sliced-testing]
+  since: "0.1.0"
+
+- id: SB-ACT-001
+  title: Secure Actuator management endpoints
+  layer: spring-boot
+  category: ops
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [spring-boot]
+    tasks: [feature, new-project]
+  rule: >
+    Do not expose all actuator endpoints via `management.endpoints.web.exposure.include=*` in production.
+    Expose only `health` and `info` publicly, and protect sensitive endpoints with authentication.
+  rationale: >
+    Unprotected actuator endpoints leak environment variables, heap dumps, and system metrics.
+  good: |
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info
+  bad: |
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+  verify:
+    type: checklist
+    prompt: Confirm Actuator endpoint exposure is restricted and secured.
+  tags: [spring, ops, actuator, security]
+  since: "0.1.0"

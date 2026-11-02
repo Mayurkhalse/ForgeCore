@@ -1,0 +1,53 @@
+- id: TST-ISO-001
+  title: Unit tests must execute in complete isolation without external network calls
+  layer: testing
+  category: testing
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [testing]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    Unit tests must not rely on live third-party web services or public internet connections.
+    Mock external HTTP endpoints and third-party APIs using test adapters or fixtures.
+  rationale: >
+    Network-dependent tests produce flaky builds, break offline development, and cause test-runner timeouts.
+  good: |
+    @pytest.fixture
+    def mock_stripe(monkeypatch):
+        monkeypatch.setattr(StripeClient, "charge", lambda *args, **kwargs: {"status": "succeeded"})
+  bad: |
+    def test_payment():
+        res = requests.post("https://api.stripe.com/v1/charges", ...)
+  verify:
+    type: checklist
+    prompt: Confirm unit tests mock all external network services and external I/O.
+  tags: [testing, isolation, mocking]
+  since: "0.1.0"
+
+- id: TST-DET-001
+  title: Avoid non-deterministic test assertions based on wall-clock time
+  layer: testing
+  category: testing
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [testing]
+    tasks: [feature, bugfix]
+  rule: >
+    Freeze or mock time when asserting time-dependent operations. Never rely on time.sleep()
+    to test asynchronous timing.
+  rationale: >
+    Sleep-based and real-time assertions fail unpredictably on slow CI runners.
+  good: |
+    with freeze_time("2026-01-01 12:00:00"):
+        assert token.is_valid()
+  bad: |
+    token = create_token()
+    time.sleep(2)
+    assert not token.is_valid()
+  verify:
+    type: checklist
+    prompt: Verify test timing is deterministic and does not use hardcoded sleep intervals.
+  tags: [testing, determinism]
+  since: "0.1.0"

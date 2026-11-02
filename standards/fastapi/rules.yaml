@@ -1,0 +1,351 @@
+- id: FAPI-ARCH-001
+  title: Route handlers must not contain business logic or direct DB access
+  layer: fastapi
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Route handlers parse input, call a service function, and map the result to a response.
+    Business logic lives in `services/`; persistence in `repositories/`.
+  rationale: >
+    Keeps logic testable without HTTP, prevents duplicated queries and messy spaghetti handlers.
+  good: |
+    @router.post("/users")
+    async def create(body: UserCreate, svc: UserService = Depends(get_user_service)):
+        return await svc.create(body)
+  bad: |
+    @router.post("/users")
+    async def create(body: UserCreate, db: Session = Depends(get_db)):
+        db.add(User(**body.dict())); db.commit()
+  verify:
+    type: semgrep
+    ref: standards/verifiers/semgrep/fastapi-rules.yaml
+  tags: [layering, testability, fastapi]
+  since: "0.1.0"
+
+- id: FAPI-ARCH-002
+  title: Organize endpoints using APIRouter instances rather than root FastAPI app
+  layer: fastapi
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Define modular endpoints within separate routers using `APIRouter(prefix=..., tags=...)`
+    and mount them on the root application using `app.include_router(router)`.
+  rationale: >
+    Prevents giant monolithic main.py files and enables clear module boundaries.
+  good: |
+    router = APIRouter(prefix="/orders", tags=["orders"])
+    @router.get("/")
+    def list_orders(): ...
+  bad: |
+    app = FastAPI()
+    @app.get("/orders")
+    def list_orders(): ...
+  verify:
+    type: checklist
+    prompt: Confirm endpoints are grouped into dedicated APIRouter modules.
+  tags: [architecture, modularity]
+  since: "0.1.0"
+
+- id: FAPI-DEP-001
+  title: Use FastAPI Depends for dependency injection
+  layer: fastapi
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    Inject database sessions, service classes, configuration objects, and current authenticated user
+    using FastAPI's `Depends()` mechanism.
+  rationale: >
+    Enables clean separation and allows effortless mocking in tests via app.dependency_overrides.
+  good: |
+    @router.get("/profile")
+    async def get_profile(current_user: User = Depends(get_current_user)):
+        return current_user
+  bad: |
+    @router.get("/profile")
+    async def get_profile(request: Request):
+        user = GlobalAuth.lookup(request.headers.get("Authorization"))
+  verify:
+    type: checklist
+    prompt: Confirm dependencies are injected via FastAPI Depends().
+  tags: [dependency-injection, testability]
+  since: "0.1.0"
+
+- id: FAPI-MOD-001
+  title: Separate request schemas from response schemas and ORM entities
+  layer: fastapi
+  category: data
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    Define distinct Pydantic models for request bodies (`ItemCreate`, `ItemUpdate`) and response payloads (`ItemRead`).
+    Never use ORM database models directly as route input parameters.
+  rationale: >
+    Prevents mass assignment vulnerabilities and unintentional leakage of sensitive internal database columns.
+  good: |
+    @router.post("/items", response_model=ItemRead)
+    async def create_item(body: ItemCreate, svc: ItemService = Depends()):
+        return await svc.create(body)
+  bad: |
+    @router.post("/items")
+    async def create_item(item: ItemORM):
+        ...
+  verify:
+    type: checklist
+    prompt: Confirm distinct request and response Pydantic models are used for API boundaries.
+  tags: [pydantic, data-modeling, security]
+  since: "0.1.0"
+
+- id: FAPI-MOD-002
+  title: Always declare response_model or precise return type hints
+  layer: fastapi
+  category: api
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    Route definitions must explicitly specify `response_model=...` or use strict return type annotations.
+  rationale: >
+    Enforces automatic response filtering and accurate OpenAPI documentation generation.
+  good: |
+    @router.get("/{id}", response_model=UserResponse)
+    async def get_user(id: int) -> UserResponse: ...
+  bad: |
+    @router.get("/{id}")
+    async def get_user(id: int):
+        return {"id": id, "password_hash": "..."}
+  verify:
+    type: checklist
+    prompt: Verify route handlers declare response_model or return type annotations.
+  tags: [api, typing, openapi]
+  since: "0.1.0"
+
+- id: FAPI-SEC-001
+  title: Protect sensitive endpoints with security dependencies
+  layer: fastapi
+  category: security
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    All authenticated endpoints must declare security dependencies (e.g., `Security(get_current_active_user)`).
+  rationale: >
+    Prevents unauthenticated access and establishes consistent RBAC checking across endpoints.
+  good: |
+    @router.delete("/users/{id}")
+    async def delete_user(id: int, admin: User = Security(get_current_admin)): ...
+  bad: |
+    @router.delete("/users/{id}")
+    async def delete_user(id: int): ...
+  verify:
+    type: checklist
+    prompt: Verify protected routes require authentication and authorization dependencies.
+  tags: [security, auth]
+  since: "0.1.0"
+
+- id: FAPI-SEC-002
+  title: Constrain path parameters with Path validation
+  layer: fastapi
+  category: security
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    Use `Path(..., ge=1)` or regex constraints for IDs and numeric parameters in URL paths.
+  rationale: >
+    Rejects invalid inputs at the routing tier before unnecessary service or database queries run.
+  good: |
+    @router.get("/orders/{order_id}")
+    def get_order(order_id: int = Path(..., ge=1, le=10_000_000)): ...
+  bad: |
+    @router.get("/orders/{order_id}")
+    def get_order(order_id: int): ...
+  verify:
+    type: checklist
+    prompt: Confirm numeric or structured path parameters use Path constraints.
+  tags: [validation, security]
+  since: "0.1.0"
+
+- id: FAPI-ASYNC-001
+  title: Never call blocking synchronous I/O in async route handlers
+  layer: fastapi
+  category: perf
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    In `async def` routes, never execute blocking calls like `time.sleep()`, synchronous `requests.get()`,
+    or synchronous ORM calls. Use `httpx.AsyncClient`, `asyncio.sleep()`, or delegate with `asyncio.to_thread()`.
+  rationale: >
+    Blocking calls in the event loop freeze the single async worker thread and destroy concurrent throughput.
+  good: |
+    async with httpx.AsyncClient() as client:
+        res = await client.get("https://api.example.com")
+  bad: |
+    # Blocking requests call in async route
+    res = requests.get("https://api.example.com")
+  verify:
+    type: ruff
+  tags: [async, performance, fastapi]
+  since: "0.1.0"
+
+- id: FAPI-ASYNC-002
+  title: Use regular def for synchronous database operations
+  layer: fastapi
+  category: perf
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    When using synchronous libraries (like standard SQLAlchemy Session), define route handlers with `def`,
+    not `async def`. FastAPI automatically runs `def` routes in an external threadpool.
+  rationale: >
+    Calling synchronous DB operations inside `async def` blocks the main event loop.
+  good: |
+    @router.get("/items")
+    def get_items(db: Session = Depends(get_db)):
+        return db.query(Item).all()
+  bad: |
+    @router.get("/items")
+    async def get_items(db: Session = Depends(get_db)):
+        return db.query(Item).all()
+  verify:
+    type: checklist
+    prompt: Ensure synchronous database calls are placed in sync def routes or async sessions are used.
+  tags: [performance, async, database]
+  since: "0.1.0"
+
+- id: FAPI-ERR-001
+  title: Raise HTTPException with explicit status codes and error details
+  layer: fastapi
+  category: api
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, refactor]
+  rule: >
+    When handling domain errors, raise `HTTPException(status_code=..., detail=...)` or map custom domain exceptions
+    via `@app.exception_handler`.
+  rationale: >
+    Uncaught exceptions return 500 Internal Server Error without context or cause crash logs.
+  good: |
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+  bad: |
+    if not item:
+        raise Exception("Item not found")
+  verify:
+    type: checklist
+    prompt: Confirm HTTP errors are raised as HTTPException with specific HTTP status codes.
+  tags: [error-handling, fastapi]
+  since: "0.1.0"
+
+- id: FAPI-CONF-001
+  title: Manage configuration using Pydantic BaseSettings
+  layer: fastapi
+  category: ops
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, new-project]
+  rule: >
+    Encapsulate environment variables and application settings in a Pydantic `BaseSettings` class
+    with strong typing and default values.
+  rationale: >
+    Fails immediately on application startup if required environment variables are missing or malformed.
+  good: |
+    class Settings(BaseSettings):
+        database_url: PostgresDsn
+        api_key: SecretStr
+        environment: str = "production"
+  bad: |
+    DB_URL = os.environ.get("DATABASE_URL")
+  verify:
+    type: checklist
+    prompt: Confirm settings use Pydantic BaseSettings with typed fields.
+  tags: [configuration, settings]
+  since: "0.1.0"
+
+- id: FAPI-LIFESPAN-001
+  title: Use lifespan context manager for startup and shutdown events
+  layer: fastapi
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, new-project, refactor]
+  rule: >
+    Use `@asynccontextmanager async def lifespan(app: FastAPI)` instead of the deprecated
+    `@app.on_event("startup")` and `@app.on_event("shutdown")`.
+  rationale: >
+    Lifespan events provide a unified, clean context management pattern for database connection pools and background tasks.
+  good: |
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        await db_pool.connect()
+        yield
+        await db_pool.disconnect()
+    app = FastAPI(lifespan=lifespan)
+  bad: |
+    @app.on_event("startup")
+    async def startup():
+        await db_pool.connect()
+  verify:
+    type: ruff
+  tags: [lifecycle, fastapi]
+  since: "0.1.0"
+
+- id: FAPI-TEST-001
+  title: Test endpoints using TestClient with dependency overrides
+  layer: fastapi
+  category: testing
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [fastapi]
+    tasks: [feature, bugfix, testing]
+  rule: >
+    Write automated tests for FastAPI routes using `starlette.testclient.TestClient` or `httpx.AsyncClient`.
+    Override database and auth dependencies via `app.dependency_overrides`.
+  rationale: >
+    Ensures endpoints are tested with exact HTTP routing, serialization, and status code behavior without hitting live services.
+  good: |
+    def test_read_item(client):
+        app.dependency_overrides[get_db] = override_get_db
+        res = client.get("/items/1")
+        assert res.status_code == 200
+  bad: |
+    # Calling handler directly without HTTP stack
+    res = read_item(1, None)
+  verify:
+    type: checklist
+    prompt: Verify test suite uses TestClient or AsyncClient with dependency_overrides.
+  tags: [testing, testclient, fastapi]
+  since: "0.1.0"

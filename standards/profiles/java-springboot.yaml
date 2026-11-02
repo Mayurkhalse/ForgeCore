@@ -1,0 +1,8 @@
+id: java-springboot
+layers:
+  - universal
+  - security
+  - testing
+  - api-design
+  - observability
+  - spring-boot

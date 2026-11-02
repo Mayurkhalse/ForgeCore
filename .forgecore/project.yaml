@@ -1,0 +1,15 @@
+version: 1
+project:
+  name: ForgeCore
+layers:
+  add: []
+  remove: []
+generation:
+  require_plan: true
+  require_tests: true
+verify:
+  fail_on: high
+  commands: {}
+rules:
+  disable: []
+  overrides: []

@@ -1,0 +1,311 @@
+- id: REACT-ARCH-001
+  title: Extract API calls and complex state logic into custom hooks
+  layer: react
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    UI components should focus exclusively on presentation and user interaction.
+    Encapsulate data fetching, caching, and state transitions into dedicated custom hooks (e.g. `useUserOrders`).
+  rationale: >
+    Separates presentation from data fetching, enabling independent unit testing and clean reuse across views.
+  good: |
+    export function OrderList() {
+      const { orders, isLoading } = useOrders();
+      if (isLoading) return <Spinner />;
+      return <ul>{orders.map(o => <OrderItem key={o.id} order={o} />)}</ul>;
+    }
+  bad: |
+    export function OrderList() {
+      const [orders, setOrders] = useState([]);
+      useEffect(() => { fetch("/api/orders").then(res => res.json()).then(setOrders); }, []);
+      ...
+    }
+  verify:
+    type: checklist
+    prompt: Confirm UI components delegate API fetches and complex logic to custom hooks.
+  tags: [react, custom-hooks, architecture]
+  since: "0.1.0"
+
+- id: REACT-STATE-001
+  title: Never mutate state directly in React
+  layer: react
+  category: architecture
+  severity: critical
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    Always treat React state variables as immutable. Use functional state updates or spread syntax
+    when updating objects and arrays.
+  rationale: >
+    Direct mutation skips re-render triggers and causes subtle UI bugs and desynchronization.
+  good: |
+    setItems(prev => [...prev, newItem]);
+  bad: |
+    items.push(newItem);
+    setItems(items);
+  verify:
+    type: eslint
+  tags: [react, state, immutability]
+  since: "0.1.0"
+
+- id: REACT-HOOK-001
+  title: Adhere strictly to the Rules of Hooks
+  layer: react
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    Only call hooks at the top level of React function components or custom hooks.
+    Never call hooks inside loops, conditional statements, or nested callbacks.
+  rationale: >
+    React depends on consistent hook call order across renders to preserve state identity.
+  good: |
+    const [data, setData] = useState(null);
+    if (!isEnabled) return null;
+  bad: |
+    if (isEnabled) {
+      const [data, setData] = useState(null);
+    }
+  verify:
+    type: eslint
+  tags: [react, hooks]
+  since: "0.1.0"
+
+- id: REACT-KEY-001
+  title: Use stable unique identifiers as list keys instead of array indices
+  layer: react
+  category: perf
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    When rendering dynamic lists in JSX, assign a stable unique key (such as `item.id`).
+    Never use array indices as keys if the list can be reordered, filtered, or mutated.
+  rationale: >
+    Index keys cause DOM reuse bugs, broken form state, and severe rendering performance degradation.
+  good: |
+    {users.map(u => <UserCard key={u.id} user={u} />)}
+  bad: |
+    {users.map((u, index) => <UserCard key={index} user={u} />)}
+  verify:
+    type: eslint
+  tags: [react, virtual-dom, performance]
+  since: "0.1.0"
+
+- id: REACT-EFF-001
+  title: Clean up subscriptions, event listeners, and timers in useEffect
+  layer: react
+  category: ops
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, bugfix, refactor]
+  rule: >
+    Effects that establish event listeners, WebSocket connections, or intervals must return a cleanup function.
+  rationale: >
+    Failing to clean up creates memory leaks, ghost event listeners, and unhandled state updates on unmounted components.
+  good: |
+    useEffect(() => {
+      const timer = setInterval(tick, 1000);
+      return () => clearInterval(timer);
+    }, []);
+  bad: |
+    useEffect(() => {
+      setInterval(tick, 1000);
+    }, []);
+  verify:
+    type: eslint
+  tags: [react, memory-leaks, useeffect]
+  since: "0.1.0"
+
+- id: REACT-PROP-001
+  title: Strongly type component props with TypeScript
+  layer: react
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, refactor, new-project]
+  rule: >
+    Every React component must have an explicitly typed props interface. Avoid using `any` or untyped props.
+  rationale: >
+    Strong prop contracts prevent missing prop runtime bugs and document component requirements.
+  good: |
+    interface ButtonProps {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "secondary";
+    }
+    export function Button({ label, onClick, variant = "primary" }: ButtonProps) { ... }
+  bad: |
+    export function Button(props: any) { ... }
+  verify:
+    type: eslint
+  tags: [react, typescript, typing]
+  since: "0.1.0"
+
+- id: REACT-ERR-001
+  title: Protect application subtrees with React Error Boundaries
+  layer: react
+  category: architecture
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, new-project]
+  rule: >
+    Wrap critical page sections, widgets, and dynamic plugins inside React Error Boundaries
+    to present fallback UI rather than crashing the entire application into a blank screen.
+  rationale: >
+    Uncaught exceptions during rendering unmount the entire React component tree.
+  good: |
+    <ErrorBoundary fallback={<ErrorBanner />}>
+      <UserDashboard />
+    </ErrorBoundary>
+  bad: |
+    <UserDashboard />
+  verify:
+    type: checklist
+    prompt: Confirm key routes or widget components are wrapped with error boundaries.
+  tags: [react, error-handling, resilience]
+  since: "0.1.0"
+
+- id: REACT-MEMO-001
+  title: Avoid premature and gratuitous memoization
+  layer: react
+  category: perf
+  severity: low
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, refactor]
+  rule: >
+    Do not wrap primitive computations or tiny leaf components in `useMemo` or `useCallback`
+    without profiling evidence of costly recalculations or re-render bottlenecks.
+  rationale: >
+    Indiscriminate memoization adds memory overhead and complicates dependency arrays with no perceptible gain.
+  good: |
+    const fullName = `${first} ${last}`;
+  bad: |
+    const fullName = useMemo(() => `${first} ${last}`, [first, last]);
+  verify:
+    type: checklist
+    prompt: Confirm useMemo/useCallback are used for genuinely expensive operations or reference stability.
+  tags: [react, performance]
+  since: "0.1.0"
+
+- id: REACT-FORM-001
+  title: Use schema-validated form management for complex forms
+  layer: react
+  category: data
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, refactor]
+  rule: >
+    For forms with more than 3 fields, use form management solutions (e.g. React Hook Form)
+    paired with schema validation (Zod, Yup).
+  rationale: >
+    Manual useState per field leads to excessive boilerplate, re-render lag, and inconsistent error states.
+  good: |
+    const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
+  bad: |
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [age, setAge] = useState("");
+    // manual validation for each
+  verify:
+    type: checklist
+    prompt: Verify complex forms use structured form and validation libraries.
+  tags: [react, forms, validation]
+  since: "0.1.0"
+
+- id: REACT-A11Y-001
+  title: Ensure interactive elements are keyboard and screen-reader accessible
+  layer: react
+  category: architecture
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, refactor]
+  rule: >
+    Use native `<button>` and `<a>` elements for user actions. If using clickable divs or custom controls,
+    provide `role="button"`, `tabIndex={0}`, and handle keyboard `Enter`/`Space` events.
+  rationale: >
+    Inaccessible elements break assistive technology navigation for disabled users.
+  good: |
+    <button type="button" onClick={handleSave}>Save</button>
+  bad: |
+    <div onClick={handleSave}>Save</div>
+  verify:
+    type: eslint
+  tags: [react, accessibility, a11y]
+  since: "0.1.0"
+
+- id: REACT-ROUT-001
+  title: Code-split routes with React.lazy and Suspense
+  layer: react
+  category: perf
+  severity: medium
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, new-project]
+  rule: >
+    Load route components dynamically with `React.lazy(() => import("./RouteComponent"))`
+    wrapped in `<Suspense fallback={<Loading />}>`.
+  rationale: >
+    Decreases initial JavaScript bundle sizes and accelerates initial page load times.
+  good: |
+    const Settings = React.lazy(() => import("./pages/Settings"));
+    <Suspense fallback={<Spinner />}><Settings /></Suspense>
+  bad: |
+    import Settings from "./pages/Settings"; // bundled into main chunk
+  verify:
+    type: checklist
+    prompt: Verify top-level routes are code-split using React.lazy.
+  tags: [react, code-splitting, performance]
+  since: "0.1.0"
+
+- id: REACT-TEST-001
+  title: Test React components by user interactions using React Testing Library
+  layer: react
+  category: testing
+  severity: high
+  tier: standard
+  applies_when:
+    layers: [react]
+    tasks: [feature, testing]
+  rule: >
+    Write tests that interact with rendered DOM elements via user queries (`getByRole`, `getByText`)
+    rather than inspecting internal component state or enzyme shallow rendering.
+  rationale: >
+    Testing user-observable behavior yields resilient tests that do not break upon internal refactoring.
+  good: |
+    render(<LoginForm />);
+    await userEvent.type(screen.getByRole("textbox", { name: /email/i }), "user@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /submit/i }));
+    expect(screen.getByText(/welcome/i)).toBeInTheDocument();
+  bad: |
+    const wrapper = shallow(<LoginForm />);
+    expect(wrapper.state("isLoggedIn")).toBe(false);
+  verify:
+    type: checklist
+    prompt: Confirm component tests query DOM through accessible roles and texts.
+  tags: [react, testing, rtl]
+  since: "0.1.0"

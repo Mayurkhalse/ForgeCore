@@ -1,0 +1,22 @@
+rules:
+  - id: fastapi-no-db-in-routes
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @$ROUTER.$METHOD(...)
+              async def $FN(..., $DB: Session = Depends(...), ...):
+                  ...
+                  $DB.add(...)
+          - pattern: |
+              @$ROUTER.$METHOD(...)
+              def $FN(..., $DB: Session = Depends(...), ...):
+                  ...
+                  $DB.add(...)
+          - pattern: |
+              @$ROUTER.$METHOD(...)
+              async def $FN(..., $DB: Session = Depends(...), ...):
+                  ...
+                  $DB.query(...)
+    message: "Direct database access detected in FastAPI route handler. Delegate data persistence to a service or repository layer."
+    languages: [python]
+    severity: ERROR
