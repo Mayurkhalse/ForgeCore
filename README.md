@@ -192,6 +192,22 @@ Covering five stacks in v0.1 is ambitious, so depth is explicit and honest:
 
 **Quality bar per stack layer for v0.1:** at least 12 rules, of which **at least 5 are machine-verifiable**. A stack that does not meet the bar ships labeled `experimental` in the docs.
 
+#### Layer Quality & Stability Status in v0.1
+
+| Layer / Stack | Total Rules | Machine Verifiers | Status in v0.1 |
+|---|---|---|---|
+| `universal` | 13 | 13 (Secrets, PathGuard, conventions) | **Stable** |
+| `security` | 12 | 8 (Semgrep security rules, Secrets) | **Stable** |
+| `testing` | 12 | 6 (TestRunner pytest/npm checks) | **Stable** |
+| `api-design` | 12 | 6 (Semgrep contract & API checks) | **Stable** |
+| `observability`| 12 | 6 (Semgrep structured logging checks) | **Stable** |
+| `react` | 12 | 5 (ESLint React rules) | **Stable** |
+| `fastapi` | 12 | 2 (Semgrep FastAPI rules) | **Experimental** (missing 3 verifiers) |
+| `node-express`| 12 | 1 (ESLint / Semgrep) | **Experimental** (missing 4 verifiers) |
+| `react-native`| 12 | 0 (guidance only) | **Experimental** (missing 5 verifiers) |
+| `spring-boot` | 12 | 0 (guidance only) | **Experimental** (missing 5 verifiers) |
+| `python-ml` | 12 | 0 (guidance only) | **Experimental** (missing 5 verifiers) |
+
 ### 6.3 Rule schema
 
 ```yaml

@@ -1,4 +1,5 @@
 id: react-node
+status: experimental
 layers:
   - universal
   - security
