@@ -40,7 +40,10 @@ class AntigravityAdapter(ClientAdapter):
 
             # 2. Update mcp_config.json
             mcp_data = {"mcpServers": {}}
+            mcp_backup_path: Path | None = None
             if self.mcp_config_path.is_file():
+                mcp_backup_path = self.mcp_config_path.with_suffix(".json.bak")
+                shutil.copy2(self.mcp_config_path, mcp_backup_path)
                 try:
                     mcp_data = json.loads(self.mcp_config_path.read_text(encoding="utf-8"))
                     if not isinstance(mcp_data, dict):
@@ -71,8 +74,11 @@ class AntigravityAdapter(ClientAdapter):
                 "<!-- FORGECORE-MANAGED-END -->\n"
             )
 
-            # If GEMINI.md already exists, append or replace the managed block
+            # If GEMINI.md already exists, backup and append or replace the managed block
+            rule_backup_path: Path | None = None
             if self.global_rule_path.is_file():
+                rule_backup_path = self.global_rule_path.with_suffix(".md.bak")
+                shutil.copy2(self.global_rule_path, rule_backup_path)
                 existing = self.global_rule_path.read_text(encoding="utf-8")
                 if "<!-- FORGECORE-MANAGED-START -->" in existing:
                     start_idx = existing.find("<!-- FORGECORE-MANAGED-START -->")
@@ -100,6 +106,10 @@ class AntigravityAdapter(ClientAdapter):
                 "python_path": str(python_path),
                 "installed_files": installed_files,
                 "added_mcp_server": "forgecore",
+                "backups": {
+                    "mcp_config": str(mcp_backup_path) if mcp_backup_path else None,
+                    "global_rule": str(rule_backup_path) if rule_backup_path else None,
+                },
             }
             self.manifest_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
 
@@ -151,7 +161,18 @@ class AntigravityAdapter(ClientAdapter):
                         self.global_rule_path.unlink()
                     removed.append("Removed Core Contract from global GEMINI.md")
 
-            # 3. Remove manifest
+            # 3. Clean up backup files if present
+            mcp_backup = self.mcp_config_path.with_suffix(".json.bak")
+            if mcp_backup.is_file():
+                mcp_backup.unlink()
+                removed.append("Cleaned up mcp_config.json.bak")
+
+            rule_backup = self.global_rule_path.with_suffix(".md.bak")
+            if rule_backup.is_file():
+                rule_backup.unlink()
+                removed.append("Cleaned up GEMINI.md.bak")
+
+            # 4. Remove manifest
             if self.manifest_path.is_file():
                 self.manifest_path.unlink()
                 removed.append("Removed install manifest")
