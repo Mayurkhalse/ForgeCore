@@ -11,10 +11,23 @@ from forgecore.core.verify.verifier import Verifier
 from forgecore.core.workflows import WorkflowEngine
 
 
-def fence_untrusted_data(data: Any) -> str:
-    """Wraps untrusted project strings in security boundaries."""
-    serialized = json.dumps(data, indent=2, default=str)
-    return f"<untrusted_project_data>\n{serialized}\n</untrusted_project_data>"
+def fence_untrusted(text: Any) -> str:
+    """Fences and labels strings sourced from project files as untrusted project data."""
+    val = str(text) if not isinstance(text, str) else text
+    if val.startswith("<untrusted_project_data>") and val.endswith("</untrusted_project_data>"):
+        return val
+    return f"<untrusted_project_data>{val}</untrusted_project_data>"
+
+
+def fence_nested_untrusted(data: Any) -> Any:
+    """Recursively fences string data originating from project files/manifests."""
+    if isinstance(data, str):
+        return fence_untrusted(data)
+    if isinstance(data, list):
+        return [fence_nested_untrusted(item) for item in data]
+    if isinstance(data, dict):
+        return {k: fence_nested_untrusted(v) for k, v in data.items()}
+    return data
 
 
 class MCPToolHandlers:
@@ -51,9 +64,22 @@ class MCPToolHandlers:
             if contract_path.is_file():
                 contract_summary = contract_path.read_text(encoding="utf-8")[:1200]
 
+            raw_proj_name = config.project.get("name")
+            if not raw_proj_name:
+                pkg_json = root_path / "package.json"
+                if pkg_json.is_file():
+                    try:
+                        pkg_data = json.loads(pkg_json.read_text(encoding="utf-8"))
+                        if isinstance(pkg_data, dict) and "name" in pkg_data:
+                            raw_proj_name = str(pkg_data["name"])
+                    except Exception:
+                        pass
+            if not raw_proj_name:
+                raw_proj_name = root_path.name
+
             return {
                 "status": "initialized",
-                "project_name": config.project.get("name", root_path.name),
+                "project_name": fence_untrusted(raw_proj_name),
                 "context_version": version,
                 "refreshed": refreshed,
                 "detected_stack": {
@@ -63,7 +89,7 @@ class MCPToolHandlers:
                     "suggested_profile": profile.suggested_profile,
                 },
                 "active_layers": active_layers,
-                "evidence": json.loads(fence_untrusted_data(profile.evidence).replace("<untrusted_project_data>\n", "").replace("\n</untrusted_project_data>", "")),
+                "evidence": fence_nested_untrusted(profile.evidence),
                 "core_contract_summary": contract_summary,
                 "next_step": "Call forgecore.get_workflow(task_type) or forgecore.get_standards(task, layers) before writing code.",
             }
@@ -203,6 +229,13 @@ class MCPToolHandlers:
             root_path = Path(root).resolve()
             verifier = Verifier(root_path)
             report = verifier.verify(scope=scope, checks=checks)
-            return report.model_dump(mode="json")
+            data = report.model_dump(mode="json")
+            # Fence untrusted project-sourced fields in findings
+            for finding in data.get("findings", []):
+                if "file" in finding:
+                    finding["file"] = fence_untrusted(finding["file"])
+                if "message" in finding:
+                    finding["message"] = fence_untrusted(finding["message"])
+            return data
         except Exception as e:
             return {"error": {"code": "VERIFICATION_ERROR", "message": str(e), "hint": "Check verifier configurations."}}
