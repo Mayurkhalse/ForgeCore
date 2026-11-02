@@ -7,6 +7,7 @@ import yaml
 from jinja2 import Template
 
 from forgecore.core.models import ProjectConfig
+from forgecore.core.security import fence_untrusted
 
 
 class WorkflowEngine:
@@ -57,12 +58,13 @@ class WorkflowEngine:
     ) -> str:
         frontmatter, body = self.get_raw_workflow(task_type)
 
-        # Context for rendering
+        # Context for rendering (project-derived commands are strictly fenced)
         verify_commands = config.verify.commands if config and config.verify.commands else {}
+        fenced_commands = {k: fence_untrusted(v) for k, v in verify_commands.items()}
         context = {
             "task_type": task_type,
             "layers": active_layers,
-            "commands": verify_commands,
+            "commands": fenced_commands,
             "fail_on": config.verify.fail_on.value if config else "high",
         }
 

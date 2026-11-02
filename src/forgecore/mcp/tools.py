@@ -1,50 +1,19 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from forgecore.core.context import ContextBuilder
 from forgecore.core.pathguard import PathGuard, PathGuardError
 from forgecore.core.rules import RuleLoader, RuleSelector
+from forgecore.core.security import (
+    fence_nested_untrusted,
+    fence_untrusted,
+    neutralize_fence_tags,
+)
 from forgecore.core.verify.verifier import Verifier
 from forgecore.core.workflows import WorkflowEngine
-
-FENCE_TAG_PATTERN = re.compile(r"<\s*(/)?\s*untrusted_project_data\s*>", re.IGNORECASE)
-
-
-def neutralize_fence_tags(text: str) -> str:
-    """Neutralizes raw fence tag occurrences within untrusted strings to prevent breakouts."""
-
-    def _replace(match: re.Match[str]) -> str:
-        slash = match.group(1) or ""
-        return f"[{slash}untrusted_project_data]"
-
-    return FENCE_TAG_PATTERN.sub(_replace, text)
-
-
-def fence_untrusted(text: Any) -> str:
-    """Fences and labels strings sourced from project files as untrusted project data,
-
-    neutralizing any internal fence breakout sequences.
-    """
-    val = str(text) if not isinstance(text, str) else text
-    if val.startswith("<untrusted_project_data>") and val.endswith("</untrusted_project_data>"):
-        val = val[len("<untrusted_project_data>") : -len("</untrusted_project_data>")]
-    neutralized = neutralize_fence_tags(val)
-    return f"<untrusted_project_data>{neutralized}</untrusted_project_data>"
-
-
-def fence_nested_untrusted(data: Any) -> Any:
-    """Recursively fences string data originating from project files/manifests."""
-    if isinstance(data, str):
-        return fence_untrusted(data)
-    if isinstance(data, list):
-        return [fence_nested_untrusted(item) for item in data]
-    if isinstance(data, dict):
-        return {k: fence_nested_untrusted(v) for k, v in data.items()}
-    return data
 
 
 class MCPToolHandlers:
@@ -128,7 +97,7 @@ class MCPToolHandlers:
                 config=config,
             )
 
-            return {
+            res: dict[str, Any] = {
                 "context_version": version,
                 "refreshed": refreshed,
                 "active_layers": active_layers,
@@ -138,6 +107,17 @@ class MCPToolHandlers:
                 "require_plan": config.generation.require_plan,
                 "require_tests": config.generation.require_tests,
             }
+            if config.rules.overrides:
+                res["rule_overrides"] = [
+                    {
+                        "id": ov.id,
+                        "severity": ov.severity.value if ov.severity else None,
+                        "disabled": ov.disabled,
+                        "reason": fence_untrusted(ov.reason) if ov.reason else None,
+                    }
+                    for ov in config.rules.overrides
+                ]
+            return res
         except Exception as e:
             return {"error": {"code": "CONTEXT_ERROR", "message": str(e), "hint": "Run initialize_project first."}}
 
@@ -171,9 +151,10 @@ class MCPToolHandlers:
                 max_rules=max_rules,
             )
 
+            override_map = {ov.id: ov for ov in config.rules.overrides} if config else {}
             rules_data = []
             for r in selected_rules:
-                rules_data.append({
+                entry: dict[str, Any] = {
                     "id": r.id,
                     "title": r.title,
                     "layer": r.layer,
@@ -183,7 +164,15 @@ class MCPToolHandlers:
                     "good": r.good.strip() if r.good else "",
                     "bad": r.bad.strip() if r.bad else "",
                     "verify_ref": r.verify.ref if r.verify else None,
-                })
+                }
+                if r.id in override_map:
+                    ov = override_map[r.id]
+                    entry["override"] = {
+                        "severity": ov.severity.value if ov.severity else None,
+                        "disabled": ov.disabled,
+                        "reason": fence_untrusted(ov.reason) if ov.reason else None,
+                    }
+                rules_data.append(entry)
 
             return {
                 "task": task,
@@ -229,7 +218,8 @@ class MCPToolHandlers:
         """
         rule = self.selector.get_rule(rule_id)
         if not rule:
-            return {"error": {"code": "RULE_NOT_FOUND", "message": f"Rule '{rule_id}' does not exist", "hint": "Check rule ID spelling."}}
+            clean_id = neutralize_fence_tags(rule_id)
+            return {"error": {"code": "RULE_NOT_FOUND", "message": f"Rule '{clean_id}' does not exist", "hint": "Check rule ID spelling."}}
 
         return rule.model_dump(mode="json")
 
@@ -253,6 +243,22 @@ class MCPToolHandlers:
                     finding["file"] = fence_untrusted(finding["file"])
                 if "message" in finding:
                     finding["message"] = fence_untrusted(finding["message"])
+                if "fix_hint" in finding and finding["fix_hint"]:
+                    finding["fix_hint"] = fence_untrusted(finding["fix_hint"])
+                if "recommendation" in finding and finding["recommendation"]:
+                    finding["recommendation"] = neutralize_fence_tags(finding["recommendation"])
+
+            # Fence untrusted project-sourced fields in skipped checks
+            for skipped in data.get("skipped", []):
+                if "reason" in skipped:
+                    skipped["reason"] = fence_untrusted(skipped["reason"])
+                if "check" in skipped and skipped["check"].startswith("custom:"):
+                    skipped["check"] = fence_untrusted(skipped["check"])
+
+            # Neutralize next_action string
+            if "next_action" in data and data["next_action"]:
+                data["next_action"] = neutralize_fence_tags(data["next_action"])
+
             return data
         except Exception as e:
-            return {"error": {"code": "VERIFICATION_ERROR", "message": str(e), "hint": "Check verifier configurations."}}
+            return {"error": {"code": "VERIFICATION_ERROR", "message": neutralize_fence_tags(str(e)), "hint": "Check verifier configurations."}}
