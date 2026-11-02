@@ -10,6 +10,7 @@ class InstallOpts:
     workspace_root: Path | None = None
     force: bool = False
     with_scaffold: bool = True
+    dry_run: bool = False
 
 
 @dataclass

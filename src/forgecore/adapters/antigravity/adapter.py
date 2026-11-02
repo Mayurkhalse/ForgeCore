@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import json
 import shutil
 import sys
@@ -10,6 +11,18 @@ from forgecore.core.config import ConfigLoader
 from forgecore.mcp.tools import MCPToolHandlers
 
 MANIFEST_FILE_NAME = "forgecore-manifest.json"
+
+
+def _create_timestamped_backup(file_path: Path) -> Path:
+    """Creates a unique timestamped backup copy that is never overwritten."""
+    now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+    candidate = file_path.with_name(f"{file_path.name}.{now_str}.bak")
+    counter = 1
+    while candidate.exists():
+        candidate = file_path.with_name(f"{file_path.name}.{now_str}_{counter}.bak")
+        counter += 1
+    shutil.copy2(file_path, candidate)
+    return candidate
 
 
 class AntigravityAdapter(ClientAdapter):
@@ -32,26 +45,47 @@ class AntigravityAdapter(ClientAdapter):
     def install(self, opts: InstallOpts) -> InstallResult:
         """Configures MCP server, writes global rule, and creates optional project scaffold."""
         try:
+            # 1. Validate existing mcp_config.json if present
+            mcp_data = {"mcpServers": {}}
+            if self.mcp_config_path.is_file():
+                raw_mcp = self.mcp_config_path.read_text(encoding="utf-8")
+                try:
+                    loaded = json.loads(raw_mcp)
+                    if not isinstance(loaded, dict):
+                        return InstallResult(
+                            success=False,
+                            message=f"Existing MCP config file '{self.mcp_config_path}' must contain a valid JSON object.",
+                        )
+                    mcp_data = loaded
+                except Exception as e:
+                    return InstallResult(
+                        success=False,
+                        message=f"Existing MCP config file '{self.mcp_config_path}' contains invalid JSON: {e}. Refusing to proceed.",
+                    )
+                if "mcpServers" not in mcp_data:
+                    mcp_data["mcpServers"] = {}
+
+            # 2. Check for dry-run (after validating config)
+            if opts.dry_run:
+                preview_files = [str(self.mcp_config_path), str(self.global_rule_path)]
+                if opts.workspace_root and opts.with_scaffold:
+                    preview_files.append(str(opts.workspace_root / ".forgecore" / "project.yaml"))
+                return InstallResult(
+                    success=True,
+                    message="[Dry Run] Validated configuration. No files written to disk.",
+                    installed_files=preview_files,
+                )
+
             self.config_dir.mkdir(parents=True, exist_ok=True)
             installed_files: list[str] = []
 
-            # 1. Resolve Python executable path
+            # 3. Resolve Python executable path
             python_path = sys.executable
 
-            # 2. Update mcp_config.json
-            mcp_data = {"mcpServers": {}}
+            # 4. Create timestamped backup and update mcp_config.json
             mcp_backup_path: Path | None = None
             if self.mcp_config_path.is_file():
-                mcp_backup_path = self.mcp_config_path.with_suffix(".json.bak")
-                shutil.copy2(self.mcp_config_path, mcp_backup_path)
-                try:
-                    mcp_data = json.loads(self.mcp_config_path.read_text(encoding="utf-8"))
-                    if not isinstance(mcp_data, dict):
-                        mcp_data = {"mcpServers": {}}
-                    if "mcpServers" not in mcp_data:
-                        mcp_data["mcpServers"] = {}
-                except Exception:
-                    mcp_data = {"mcpServers": {}}
+                mcp_backup_path = _create_timestamped_backup(self.mcp_config_path)
 
             mcp_data["mcpServers"]["forgecore"] = {
                 "command": str(python_path),
@@ -74,11 +108,10 @@ class AntigravityAdapter(ClientAdapter):
                 "<!-- FORGECORE-MANAGED-END -->\n"
             )
 
-            # If GEMINI.md already exists, backup and append or replace the managed block
+            # If GEMINI.md already exists, backup with unique timestamp and append or replace the managed block
             rule_backup_path: Path | None = None
             if self.global_rule_path.is_file():
-                rule_backup_path = self.global_rule_path.with_suffix(".md.bak")
-                shutil.copy2(self.global_rule_path, rule_backup_path)
+                rule_backup_path = _create_timestamped_backup(self.global_rule_path)
                 existing = self.global_rule_path.read_text(encoding="utf-8")
                 if "<!-- FORGECORE-MANAGED-START -->" in existing:
                     start_idx = existing.find("<!-- FORGECORE-MANAGED-START -->")
@@ -161,18 +194,7 @@ class AntigravityAdapter(ClientAdapter):
                         self.global_rule_path.unlink()
                     removed.append("Removed Core Contract from global GEMINI.md")
 
-            # 3. Clean up backup files if present
-            mcp_backup = self.mcp_config_path.with_suffix(".json.bak")
-            if mcp_backup.is_file():
-                mcp_backup.unlink()
-                removed.append("Cleaned up mcp_config.json.bak")
-
-            rule_backup = self.global_rule_path.with_suffix(".md.bak")
-            if rule_backup.is_file():
-                rule_backup.unlink()
-                removed.append("Cleaned up GEMINI.md.bak")
-
-            # 4. Remove manifest
+            # 3. Remove manifest (timestamped backups are preserved for safety)
             if self.manifest_path.is_file():
                 self.manifest_path.unlink()
                 removed.append("Removed install manifest")

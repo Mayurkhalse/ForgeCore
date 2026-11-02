@@ -3,8 +3,33 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+from typer.testing import CliRunner
+
 from forgecore.adapters.antigravity.adapter import AntigravityAdapter
 from forgecore.adapters.base import InstallOpts
+from forgecore.cli import app
+
+runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def isolate_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Isolates HOME and USERPROFILE to a temporary directory so real user files are never touched."""
+    fake_home = tmp_path / "fake_home"
+    fake_home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
+    return fake_home
+
+
+def test_default_config_dir_uses_isolated_home(isolate_home: Path) -> None:
+    """Verifies AntigravityAdapter default constructor uses the isolated HOME path."""
+    adapter = AntigravityAdapter()
+    expected = isolate_home / ".gemini" / "config"
+    assert adapter.config_dir == expected
+    assert adapter.mcp_config_path == expected / "mcp_config.json"
+    assert adapter.global_rule_path == expected / "GEMINI.md"
 
 
 def test_install_clean(tmp_path: Path) -> None:
@@ -29,10 +54,10 @@ def test_install_clean(tmp_path: Path) -> None:
     assert "<!-- FORGECORE-MANAGED-END -->" in content
 
 
-def test_install_creates_backups_and_preserves_user_content(tmp_path: Path) -> None:
-    """Existing mcp_config.json and GEMINI.md are backed up to .bak files
+def test_install_creates_timestamped_backups_and_never_overwrites(tmp_path: Path) -> None:
+    """Existing mcp_config.json and GEMINI.md are backed up to timestamped .bak files
 
-    and user configurations are preserved.
+    which are never overwritten even across multiple installs.
     """
     config_dir = tmp_path / ".gemini" / "config"
     config_dir.mkdir(parents=True)
@@ -53,19 +78,28 @@ def test_install_creates_backups_and_preserves_user_content(tmp_path: Path) -> N
     orig_rule = "# User Instructions\nAlways be helpful and concise.\n"
     adapter.global_rule_path.write_text(orig_rule, encoding="utf-8")
 
-    # Install
-    result = adapter.install(InstallOpts(workspace_root=tmp_path, with_scaffold=False))
-    assert result.success is True
+    # First Install
+    res1 = adapter.install(InstallOpts(workspace_root=tmp_path, with_scaffold=False))
+    assert res1.success is True
 
-    # 1. Backups created
-    mcp_bak = adapter.mcp_config_path.with_suffix(".json.bak")
-    rule_bak = adapter.global_rule_path.with_suffix(".md.bak")
-    assert mcp_bak.is_file()
-    assert rule_bak.is_file()
-    assert json.loads(mcp_bak.read_text(encoding="utf-8")) == orig_mcp
-    assert rule_bak.read_text(encoding="utf-8") == orig_rule
+    # Check that timestamped backups were created
+    mcp_baks = list(config_dir.glob("mcp_config.json.*.bak"))
+    rule_baks = list(config_dir.glob("GEMINI.md.*.bak"))
+    assert len(mcp_baks) == 1
+    assert len(rule_baks) == 1
+    assert json.loads(mcp_baks[0].read_text(encoding="utf-8")) == orig_mcp
+    assert rule_baks[0].read_text(encoding="utf-8") == orig_rule
 
-    # 2. User content preserved in active files
+    # Second Install: must create a new backup, never overwriting the first
+    res2 = adapter.install(InstallOpts(workspace_root=tmp_path, with_scaffold=False))
+    assert res2.success is True
+
+    mcp_baks2 = list(config_dir.glob("mcp_config.json.*.bak"))
+    rule_baks2 = list(config_dir.glob("GEMINI.md.*.bak"))
+    assert len(mcp_baks2) == 2
+    assert len(rule_baks2) == 2
+
+    # User content preserved in active files
     active_mcp = json.loads(adapter.mcp_config_path.read_text(encoding="utf-8"))
     assert "my-custom-tool" in active_mcp["mcpServers"]
     assert "forgecore" in active_mcp["mcpServers"]
@@ -76,8 +110,8 @@ def test_install_creates_backups_and_preserves_user_content(tmp_path: Path) -> N
     assert "<!-- FORGECORE-MANAGED-START -->" in active_rule
 
 
-def test_uninstall_restores_user_content_and_removes_backups(tmp_path: Path) -> None:
-    """Uninstall removes ForgeCore additions and cleans up backup files."""
+def test_uninstall_restores_user_content_and_preserves_backups(tmp_path: Path) -> None:
+    """Uninstall restores original user configuration and never deletes backup files."""
     config_dir = tmp_path / ".gemini" / "config"
     config_dir.mkdir(parents=True)
 
@@ -93,9 +127,11 @@ def test_uninstall_restores_user_content_and_removes_backups(tmp_path: Path) -> 
     un_res = adapter.uninstall()
     assert un_res.success is True
 
-    # Backups cleaned up
-    assert not adapter.mcp_config_path.with_suffix(".json.bak").exists()
-    assert not adapter.global_rule_path.with_suffix(".md.bak").exists()
+    # Backups are PRESERVED (never deleted by uninstall)
+    mcp_baks = list(config_dir.glob("mcp_config.json.*.bak"))
+    rule_baks = list(config_dir.glob("GEMINI.md.*.bak"))
+    assert len(mcp_baks) >= 1
+    assert len(rule_baks) >= 1
     assert not adapter.manifest_path.exists()
 
     # Active files restored
@@ -106,3 +142,54 @@ def test_uninstall_restores_user_content_and_removes_backups(tmp_path: Path) -> 
     restored_rule = adapter.global_rule_path.read_text(encoding="utf-8")
     assert "# Custom Persona" in restored_rule
     assert "<!-- FORGECORE-MANAGED-START -->" not in restored_rule
+
+
+def test_refuse_on_invalid_json(tmp_path: Path) -> None:
+    """Installer refuses to proceed if existing mcp_config.json contains invalid JSON."""
+    config_dir = tmp_path / ".gemini" / "config"
+    config_dir.mkdir(parents=True)
+
+    adapter = AntigravityAdapter(config_dir=config_dir)
+    corrupted_content = "{ this is not valid json : [ 123"
+    adapter.mcp_config_path.write_text(corrupted_content, encoding="utf-8")
+
+    res = adapter.install(InstallOpts(workspace_root=tmp_path, with_scaffold=False))
+    assert res.success is False
+    assert "contains invalid JSON" in res.message
+    # File was not overwritten or corrupted further
+    assert adapter.mcp_config_path.read_text(encoding="utf-8") == corrupted_content
+    # No backups were created for broken file
+    assert list(config_dir.glob("mcp_config.json.*.bak")) == []
+
+
+def test_dry_run_does_not_modify_disk(tmp_path: Path) -> None:
+    """Dry run validates configuration without modifying or creating files on disk."""
+    config_dir = tmp_path / ".gemini" / "config"
+    adapter = AntigravityAdapter(config_dir=config_dir)
+
+    res = adapter.install(InstallOpts(workspace_root=tmp_path, dry_run=True, with_scaffold=True))
+    assert res.success is True
+    assert "[Dry Run]" in res.message
+    assert not config_dir.exists()
+    assert not (tmp_path / ".forgecore" / "project.yaml").exists()
+
+
+def test_dry_run_refuses_invalid_json(tmp_path: Path) -> None:
+    """Dry run validates existing configuration and flags invalid JSON."""
+    config_dir = tmp_path / ".gemini" / "config"
+    config_dir.mkdir(parents=True)
+    adapter = AntigravityAdapter(config_dir=config_dir)
+    adapter.mcp_config_path.write_text("invalid json", encoding="utf-8")
+
+    res = adapter.install(InstallOpts(workspace_root=tmp_path, dry_run=True))
+    assert res.success is False
+    assert "contains invalid JSON" in res.message
+
+
+def test_cli_dry_run(isolate_home: Path) -> None:
+    """Tests the CLI --dry-run option for install antigravity."""
+    result = runner.invoke(app, ["install", "antigravity", "--dry-run"])
+    assert result.exit_code == 0
+    assert "Dry Run" in result.stdout
+    # Verify no files were created in isolated home
+    assert not (isolate_home / ".gemini").exists()

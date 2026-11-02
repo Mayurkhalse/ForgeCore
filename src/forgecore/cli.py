@@ -159,6 +159,7 @@ def verify(
 def install_antigravity(
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing configuration."),
     no_scaffold: bool = typer.Option(False, "--no-scaffold", help="Do not create project.yaml in current directory."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without writing files to disk."),
 ) -> None:
     """One-time setup for Google Antigravity (MCP server + global Core Contract)."""
     adapter = AntigravityAdapter()
@@ -166,6 +167,7 @@ def install_antigravity(
         workspace_root=Path.cwd(),
         force=force,
         with_scaffold=not no_scaffold,
+        dry_run=dry_run,
     )
     res = adapter.install(opts)
     if res.success:
