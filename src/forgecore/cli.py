@@ -13,6 +13,7 @@ from forgecore.adapters.antigravity.adapter import AntigravityAdapter
 from forgecore.adapters.base import InstallOpts
 from forgecore.core.config import ConfigLoader
 from forgecore.core.context import ContextBuilder
+from forgecore.core.models import ProjectConfig
 from forgecore.core.rules import RuleLoader, RuleSelector
 from forgecore.core.standards_linter import StandardsLinter
 from forgecore.core.verify.reporter import Reporter
@@ -237,24 +238,30 @@ def lint_standards() -> None:
 def approve(
     path: str = typer.Argument(".", help="Path to project root."),
 ) -> None:
-    """Approve custom verify commands from .forgecore/project.yaml for execution."""
+    """Approve test commands (custom or default) for project execution."""
     root_path = Path(path).resolve()
     loader = ConfigLoader(root_path)
-    if not loader.exists():
-        console.print(f"[red]No config file found in {root_path}.[/red]")
-        sys.exit(1)
-
-    config = loader.load()
-    if not config.verify.commands:
-        console.print(f"[yellow]No custom verify commands defined in {root_path / '.forgecore/project.yaml'}.[/yellow]")
-        return
+    config = loader.load() if loader.exists() else ProjectConfig()
 
     trust_mgr = CommandTrustManager()
+    from forgecore.core.models import RunContext
+    from forgecore.core.verify.runners.tests import TestRunner
+
+    if config.verify.commands:
+        commands_to_approve = dict(config.verify.commands)
+    else:
+        ctx = RunContext(project_root=root_path, config=config)
+        detected = TestRunner(trust_mgr)._detect_default_command(ctx)
+        if detected:
+            commands_to_approve = {"test": " ".join(detected)}
+        else:
+            commands_to_approve = {"test": "pytest -q"}
+
     try:
-        cmd_hash = trust_mgr.approve(root_path, config.verify.commands)
-        console.print(f"[bold green]Successfully approved {len(config.verify.commands)} custom command(s) for:[/bold green] {root_path}")
+        cmd_hash = trust_mgr.approve(root_path, commands_to_approve)
+        console.print(f"[bold green]Successfully approved test command(s) for:[/bold green] {root_path}")
         console.print(f"[dim]Approval hash: {cmd_hash[:16]}...[/dim]")
-        for k, v in config.verify.commands.items():
+        for k, v in commands_to_approve.items():
             console.print(f"  [cyan]{k}[/cyan]: {v}")
     except CommandTrustError as e:
         console.print(f"[bold red]Cannot approve commands:[/bold red] {e}")

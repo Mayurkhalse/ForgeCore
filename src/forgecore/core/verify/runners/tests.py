@@ -26,40 +26,8 @@ class TestRunner(Runner):
     def name(self) -> str:
         return "tests"
 
-    def check_trust(self, ctx: RunContext) -> tuple[bool, str | None]:
-        """Validates that any custom test command from project.yaml is allowlisted
-
-        and explicitly approved by the user.
-        """
-        custom_cmd = ctx.config.verify.commands.get("test")
-        if not custom_cmd:
-            return True, None
-
-        try:
-            parse_and_validate_command(custom_cmd)
-        except CommandTrustError as e:
-            return False, f"Custom command rejected: {e}"
-
-        if not self.trust_mgr.is_approved(ctx.project_root, ctx.config.verify.commands):
-            return False, (
-                f"Custom test command '{custom_cmd}' from .forgecore/project.yaml is untrusted. "
-                f"Run 'forgecore approve \"{ctx.project_root}\"' to review and approve execution."
-            )
-
-        return True, None
-
-    def _resolve_command(self, ctx: RunContext) -> list[str] | None:
-        custom_cmd = ctx.config.verify.commands.get("test")
-        if custom_cmd:
-            trusted, _ = self.check_trust(ctx)
-            if not trusted:
-                return None
-            try:
-                return parse_and_validate_command(custom_cmd)
-            except CommandTrustError:
-                return None
-
-        # Auto-detect test runner
+    def _detect_default_command(self, ctx: RunContext) -> list[str] | None:
+        """Detects standard framework test runners from project layout."""
         # 1. Python pytest
         if sys.platform == "win32":
             venv_pytest = ctx.project_root / ".venv" / "Scripts" / "pytest.exe"
@@ -77,6 +45,57 @@ class TestRunner(Runner):
             return ["npm", "test", "--", "--watchAll=false"]
 
         return None
+
+    def check_trust(self, ctx: RunContext) -> tuple[bool, str | None]:
+        """Validates that ANY test command execution (custom or auto-detected default)
+
+        is allowlisted and explicitly approved by the user.
+
+        Allowlisted tools (npm, mvn, gradle, pytest) run repo code by design;
+        user approval is the real security boundary.
+        """
+        custom_cmd = ctx.config.verify.commands.get("test")
+        if custom_cmd:
+            try:
+                parse_and_validate_command(custom_cmd)
+            except CommandTrustError as e:
+                return False, f"Custom command rejected: {e}"
+
+            if not self.trust_mgr.is_approved(ctx.project_root, ctx.config.verify.commands):
+                return False, (
+                    f"Custom test command '{custom_cmd}' from .forgecore/project.yaml is untrusted/unapproved. "
+                    f"Run 'forgecore approve \"{ctx.project_root}\"' to review and approve execution."
+                )
+            return True, None
+
+        # Auto-detected default test command
+        default_cmd = self._detect_default_command(ctx)
+        if not default_cmd:
+            return True, None
+
+        cmd_str = " ".join(default_cmd)
+        if not self.trust_mgr.is_approved(ctx.project_root, {"test": cmd_str}):
+            return False, (
+                f"Project test execution ('{cmd_str}') is unapproved. "
+                f"Allowlisted test tools execute repository code by design. "
+                f"Run 'forgecore approve \"{ctx.project_root}\"' to review and approve execution."
+            )
+
+        return True, None
+
+    def _resolve_command(self, ctx: RunContext) -> list[str] | None:
+        trusted, _ = self.check_trust(ctx)
+        if not trusted:
+            return None
+
+        custom_cmd = ctx.config.verify.commands.get("test")
+        if custom_cmd:
+            try:
+                return parse_and_validate_command(custom_cmd)
+            except CommandTrustError:
+                return None
+
+        return self._detect_default_command(ctx)
 
     def available(self, ctx: RunContext) -> bool:
         return self._resolve_command(ctx) is not None

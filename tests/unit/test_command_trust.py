@@ -236,3 +236,32 @@ def test_verifier_runs_custom_command_after_approval(tmp_path: Path) -> None:
     # The test check should not be skipped for trust reasons
     untrusted_skips = [s for s in report.skipped if "untrusted" in s.reason.lower()]
     assert len(untrusted_skips) == 0
+
+
+def test_default_test_suite_requires_approval(tmp_path: Path) -> None:
+    """Approval covers ANY execution of project test commands, including default ones."""
+    user_config_dir = tmp_path / "user_home" / ".forgecore"
+    project_root = tmp_path / "repo"
+    project_root.mkdir(parents=True)
+
+    # Project with default test framework detected (test_app.py) but NO custom commands in project.yaml
+    (project_root / "test_app.py").write_text("def test_ok(): pass\n", encoding="utf-8")
+
+    trust_mgr = CommandTrustManager(config_dir=user_config_dir)
+    verifier = Verifier(project_root, trust_mgr=trust_mgr)
+    report = verifier.verify()
+
+    # Must be incomplete and skipped because default test execution is unapproved
+    assert report.status == "incomplete"
+    test_skip = next((s for s in report.skipped if s.check == "tests"), None)
+    assert test_skip is not None
+    assert "unapproved" in test_skip.reason.lower()
+    assert "pytest" in test_skip.reason.lower()
+
+    # Once approved via trust manager, execution is allowed
+    trust_mgr.approve(project_root, {"test": "pytest -q"})
+    approved_report = verifier.verify()
+    unapproved_test_skips = [
+        s for s in approved_report.skipped if s.check == "tests" and "unapproved" in s.reason.lower()
+    ]
+    assert len(unapproved_test_skips) == 0
