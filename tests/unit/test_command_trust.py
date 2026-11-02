@@ -57,6 +57,28 @@ def test_reject_disallowed_executables() -> None:
             parse_and_validate_command(cmd)
 
 
+def test_reject_relative_and_path_based_executables() -> None:
+    """Relative and path-based executables (e.g. ./evil/pytest) are strictly rejected
+
+    even if their basename matches an allowlisted tool.
+    """
+    path_based_commands = [
+        "./evil/pytest",
+        ".\\evil\\pytest",
+        "bin/pytest",
+        "../pytest",
+        "/tmp/pytest",
+        "/usr/local/bin/pytest",
+        "C:\\evil\\pytest.exe",
+        "./sub/npm test",
+        "./evil/gradlew test",
+        "scripts/ruff check .",
+    ]
+    for cmd in path_based_commands:
+        with pytest.raises(DisallowedExecutableError):
+            parse_and_validate_command(cmd)
+
+
 def test_reject_shell_metacharacters() -> None:
     """Commands with shell chaining, pipes, or expansions are strictly rejected."""
     metachar_commands = [

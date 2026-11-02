@@ -3,12 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 import shlex
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
-# Allowed executable names (normalized lowercase, without Windows extensions)
-ALLOWED_EXECUTABLES: set[str] = {
+# Allowed bare executable names (normalized lowercase, without Windows extensions)
+ALLOWED_BARE_EXECUTABLES: set[str] = {
     "ruff",
     "semgrep",
     "pytest",
@@ -19,8 +20,7 @@ ALLOWED_EXECUTABLES: set[str] = {
     "mvn",
     "gradle",
     "gradlew",
-    "./gradlew",
-    ".\\gradlew",
+    "gradlew.bat",
 }
 
 # Dangerous shell metacharacters that enable command chaining, redirection, or expansion
@@ -95,32 +95,58 @@ def parse_and_validate_command(command_str: str) -> list[str]:
     raw_exe = argv[0]
     normalized_exe = raw_exe.replace("\\", "/")
 
-    # Check for ./gradlew or .\\gradlew
-    if normalized_exe in {"./gradlew", "gradlew"}:
+    # Check for ./gradlew or gradlew / gradlew.bat
+    if normalized_exe in {"./gradlew", "gradlew", "gradlew.bat"}:
         return argv
 
-    exe_path = Path(raw_exe)
-    exe_name = exe_path.name.lower()
+    # Reject any relative or absolute paths (e.g. ./evil/pytest, ../pytest, bin/pytest, /usr/bin/pytest)
+    if "/" in normalized_exe:
+        raise DisallowedExecutableError(
+            f"Path-based executable '{raw_exe}' is not permitted. "
+            f"Only bare executable names from the allowlist or './gradlew' are allowed."
+        )
 
-    # Strip Windows executable extensions
+    clean_exe = raw_exe.lower()
     for ext in (".exe", ".cmd", ".bat"):
-        if exe_name.endswith(ext):
-            exe_name = exe_name[: -len(ext)]
+        if clean_exe.endswith(ext):
+            clean_exe = clean_exe[: -len(ext)]
             break
 
     # Special handling for python -m pytest
-    if exe_name in {"python", "python3"}:
+    if clean_exe in {"python", "python3"}:
         if len(argv) >= 3 and argv[1] == "-m" and argv[2] == "pytest":
+            resolved = shutil.which(raw_exe)
+            if resolved:
+                resolved_base = Path(resolved).name.lower()
+                for ext in (".exe", ".cmd", ".bat"):
+                    if resolved_base.endswith(ext):
+                        resolved_base = resolved_base[: -len(ext)]
+                        break
+                if resolved_base not in {"python", "python3"}:
+                    raise DisallowedExecutableError(
+                        f"Resolved executable '{resolved}' does not match python."
+                    )
             return argv
         raise DisallowedExecutableError(
             f"Python executable is only allowed with '-m pytest', got: '{command_str}'"
         )
 
     # Check against allowlist
-    if exe_name in ALLOWED_EXECUTABLES:
+    if clean_exe in ALLOWED_BARE_EXECUTABLES:
+        resolved = shutil.which(raw_exe)
+        if resolved:
+            resolved_base = Path(resolved).name.lower()
+            for ext in (".exe", ".cmd", ".bat"):
+                if resolved_base.endswith(ext):
+                    resolved_base = resolved_base[: -len(ext)]
+                    break
+            if resolved_base != clean_exe and resolved_base not in ALLOWED_BARE_EXECUTABLES:
+                raise DisallowedExecutableError(
+                    f"Resolved executable '{resolved}' is not on the allowlist."
+                )
         return argv
 
-    allowed_list = sorted(list(ALLOWED_EXECUTABLES) + ["python -m pytest"])
+    allowed_list = sorted(list(ALLOWED_BARE_EXECUTABLES) + ["python -m pytest", "./gradlew"])
     raise DisallowedExecutableError(
         f"Executable '{raw_exe}' is not on the ForgeCore allowlist: {allowed_list}"
     )
