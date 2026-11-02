@@ -22,16 +22,26 @@ from forgecore.core.verify.runners import (
     SemgrepRunner,
     TestRunner,
 )
+from forgecore.core.verify.trust import (
+    CommandTrustError,
+    CommandTrustManager,
+    parse_and_validate_command,
+)
 
 
 class Verifier:
     """Orchestrates deterministic verification checks across changed or all project files."""
 
-    def __init__(self, root: Path | str) -> None:
+    def __init__(
+        self,
+        root: Path | str,
+        trust_mgr: CommandTrustManager | None = None,
+    ) -> None:
         self.root = Path(root).resolve()
         self.pathguard = PathGuard(self.root)
         self.context_builder = ContextBuilder(self.root)
         self.rule_loader = RuleLoader()
+        self.trust_mgr = trust_mgr or CommandTrustManager()
 
     def get_changed_files(self) -> list[Path]:
         """Detects changed/modified/untracked files via git, with mtime fallback."""
@@ -138,7 +148,7 @@ class Verifier:
             RuffRunner(),
             SemgrepRunner(),
             ESLintRunner(),
-            TestRunner(),
+            TestRunner(self.trust_mgr),
             checklist_runner,
         ]
 
@@ -169,12 +179,50 @@ class Verifier:
             if runner.name == "ruff" and not is_python:
                 continue
 
+            if hasattr(runner, "check_trust"):
+                trusted, untrusted_reason = runner.check_trust(ctx)
+                if not trusted:
+                    skipped.append(
+                        SkippedCheck(
+                            check=runner.name,
+                            reason=untrusted_reason or "untrusted command",
+                        )
+                    )
+                    continue
+
             if not runner.available(ctx):
                 skipped.append(SkippedCheck(check=runner.name, reason="not installed or not configured in environment"))
                 continue
 
             runner_findings = runner.run(ctx, target_files)
             findings.extend(runner_findings)
+
+        # Check any non-test custom commands defined in project config
+        if config.verify.commands:
+            for cmd_name, cmd_str in config.verify.commands.items():
+                if cmd_name == "test":
+                    continue
+                try:
+                    parse_and_validate_command(cmd_str)
+                except CommandTrustError as err:
+                    skipped.append(
+                        SkippedCheck(
+                            check=f"custom:{cmd_name}",
+                            reason=f"Rejected: {err}",
+                        )
+                    )
+                    continue
+
+                if not self.trust_mgr.is_approved(self.root, config.verify.commands):
+                    skipped.append(
+                        SkippedCheck(
+                            check=f"custom:{cmd_name}",
+                            reason=(
+                                f"Custom command '{cmd_str}' from .forgecore/project.yaml is untrusted. "
+                                f"Run 'forgecore approve \"{self.root}\"' to review and approve execution."
+                            ),
+                        )
+                    )
 
         # Collect checklist items
         checklist_items = checklist_runner.get_checklist_items(ctx)
