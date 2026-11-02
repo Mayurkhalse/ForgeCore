@@ -41,8 +41,11 @@ class BaseDetector(ABC):
         """Inspect project files and return DetectedLayer with confidence and evidence, or None."""
         pass
 
-    def scan_files(self, root: Path, max_depth: int = 3) -> list[Path]:
-        """Yield files in root up to max_depth, ignoring common build and package directories."""
+    def scan_files(self, root: Path, max_depth: int = 6) -> list[Path]:
+        """Yield files in root up to max_depth (default 6 for deep monorepos and Java layouts),
+
+        ignoring common build and package directories.
+        """
         found: list[Path] = []
         try:
             for item in root.iterdir():

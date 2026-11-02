@@ -37,7 +37,7 @@ class PythonMLDetector(BaseDetector):
         version: str | None = None
         matched_libs: list[str] = []
 
-        files = self.scan_files(root, max_depth=3)
+        files = self.scan_files(root, max_depth=6)
 
         # 1. Check requirements / pyproject / conda environment
         dep_files = [

@@ -17,7 +17,7 @@ class SpringBootDetector(BaseDetector):
         confidence = 0.0
         version: str | None = None
 
-        files = self.scan_files(root, max_depth=3)
+        files = self.scan_files(root, max_depth=6)
 
         # Check pom.xml
         pom_files = [f for f in files if f.name == "pom.xml"]

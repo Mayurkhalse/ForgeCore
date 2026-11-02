@@ -43,8 +43,10 @@ def test_detect_spring_boot():
     profile = detector.detect_stack()
 
     assert "spring-boot" in profile.layer_names()
+    assert "java" in profile.languages
     assert "maven" in profile.package_managers
     assert profile.suggested_profile == "java-springboot"
+    assert any("Application.java" in e for e in profile.evidence["spring-boot"])
 
 
 def test_detect_python_ml():

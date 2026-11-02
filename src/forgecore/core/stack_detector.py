@@ -56,7 +56,7 @@ class StackDetector:
         self.root = Path(root).resolve()
         self.pathguard = PathGuard(self.root)
 
-    def scan_files(self, max_depth: int = 3) -> list[Path]:
+    def scan_files(self, max_depth: int = 6) -> list[Path]:
         found: list[Path] = []
 
         def _walk(curr: Path, depth: int):
@@ -104,7 +104,7 @@ class StackDetector:
         return sorted(list(frameworks))
 
     def detect_stack(self) -> StackProfile:
-        files = self.scan_files(max_depth=3)
+        files = self.scan_files(max_depth=6)
         languages = self.detect_languages(files)
         package_managers = self.detect_package_managers(files)
         test_frameworks = self.detect_test_frameworks(files)

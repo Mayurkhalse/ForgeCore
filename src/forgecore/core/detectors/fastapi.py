@@ -17,7 +17,7 @@ class FastAPIDetector(BaseDetector):
         confidence = 0.0
         version: str | None = None
 
-        files = self.scan_files(root, max_depth=3)
+        files = self.scan_files(root, max_depth=6)
 
         # 1. Check pyproject.toml
         pyprojects = [f for f in files if f.name == "pyproject.toml"]

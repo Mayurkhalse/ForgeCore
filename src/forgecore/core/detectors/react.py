@@ -18,7 +18,7 @@ class ReactDetector(BaseDetector):
         version: str | None = None
 
         # Look for package.json files
-        files = self.scan_files(root, max_depth=3)
+        files = self.scan_files(root, max_depth=6)
         package_jsons = [f for f in files if f.name == "package.json"]
 
         for pkg in package_jsons:
