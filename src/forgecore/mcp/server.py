@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +11,34 @@ from mcp.server.mcpserver import MCPServer
 from forgecore.mcp.prompts import PROMPT_TEMPLATES
 from forgecore.mcp.resources import MCPResources
 from forgecore.mcp.tools import MCPToolHandlers
+
+logger = logging.getLogger("forgecore")
+
+
+def configure_logging() -> None:
+    """Routes all logging to stderr so stdout remains exclusively reserved for the JSON-RPC protocol."""
+    debug_enabled = os.environ.get("FORGECORE_DEBUG", "").lower() in {"1", "true", "yes"}
+    log_level = logging.DEBUG if debug_enabled else logging.INFO
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    # Remove any existing handlers to prevent duplicate or stdout logging
+    for h in list(root_logger.handlers):
+        root_logger.removeHandler(h)
+
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(log_level)
+    formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
+
+    logger.setLevel(log_level)
+    if debug_enabled:
+        logger.debug("FORGECORE_DEBUG enabled: all logging routed to stderr.")
 
 
 def create_server(standards_dir: Path | str | None = None) -> MCPServer:
@@ -88,6 +119,7 @@ def create_server(standards_dir: Path | str | None = None) -> MCPServer:
 
 def run_server() -> None:
     """Entrypoint to run the MCP server over stdio."""
+    configure_logging()
     server = create_server()
     server.run(transport="stdio")
 
