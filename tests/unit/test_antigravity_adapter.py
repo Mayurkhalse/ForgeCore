@@ -193,3 +193,68 @@ def test_cli_dry_run(isolate_home: Path) -> None:
     assert "Dry Run" in result.stdout
     # Verify no files were created in isolated home
     assert not (isolate_home / ".gemini").exists()
+
+
+def test_install_uninstall_roundtrip_byte_identical(isolate_home: Path, tmp_path: Path) -> None:
+    """Round-trip: install then uninstall against pre-existing files restores exact bytes.
+
+    Asserts that mcp_config.json and GEMINI.md are byte-identical afterward,
+    and timestamped backups are preserved.
+    """
+    config_dir = isolate_home / ".gemini" / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    adapter = AntigravityAdapter(config_dir=config_dir)
+
+    # Realistic pre-existing mcp_config.json with custom indentation and ordering
+    orig_mcp_bytes = (
+        b'{\n'
+        b'    "mcpServers": {\n'
+        b'        "github": {\n'
+        b'            "command": "npx",\n'
+        b'            "args": [\n'
+        b'                "-y",\n'
+        b'                "@modelcontextprotocol/server-github"\n'
+        b'            ],\n'
+        b'            "env": {\n'
+        b'                "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_secret123"\n'
+        b'            }\n'
+        b'        }\n'
+        b'    }\n'
+        b'}\n'
+    )
+    # Realistic pre-existing GEMINI.md with custom formatting and spacing
+    orig_rule_bytes = (
+        b"# Custom Engineering Directives\n\n"
+        b"- Always write clean, well-tested Python code.\n"
+        b"- Enforce ruff linting before committing.\n\n"
+        b"<!-- Persona: Strict Pair Programmer -->\n"
+    )
+
+    adapter.mcp_config_path.write_bytes(orig_mcp_bytes)
+    adapter.global_rule_path.write_bytes(orig_rule_bytes)
+
+    # 1. Install
+    install_res = adapter.install(InstallOpts(workspace_root=tmp_path, with_scaffold=False))
+    assert install_res.success is True
+    # Verify files were modified during install
+    assert adapter.mcp_config_path.read_bytes() != orig_mcp_bytes
+    assert adapter.global_rule_path.read_bytes() != orig_rule_bytes
+
+    # 2. Uninstall
+    uninstall_res = adapter.uninstall()
+    assert uninstall_res.success is True
+
+    # 3. Assert byte-identical restoration
+    assert adapter.mcp_config_path.read_bytes() == orig_mcp_bytes
+    assert adapter.global_rule_path.read_bytes() == orig_rule_bytes
+
+    # 4. Verify backups are preserved on disk and manifest removed
+    assert not adapter.manifest_path.exists()
+    mcp_backups = list(config_dir.glob("mcp_config.json.*.bak"))
+    rule_backups = list(config_dir.glob("GEMINI.md.*.bak"))
+    assert len(mcp_backups) == 1
+    assert len(rule_backups) == 1
+    assert mcp_backups[0].read_bytes() == orig_mcp_bytes
+    assert rule_backups[0].read_bytes() == orig_rule_bytes
+

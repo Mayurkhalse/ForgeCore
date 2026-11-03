@@ -170,29 +170,54 @@ class AntigravityAdapter(ClientAdapter):
         try:
             removed: list[str] = []
 
-            # 1. Clean MCP config
-            if self.mcp_config_path.is_file():
+            manifest_data: dict = {}
+            if self.manifest_path.is_file():
                 try:
-                    mcp_data = json.loads(self.mcp_config_path.read_text(encoding="utf-8"))
-                    if "mcpServers" in mcp_data and "forgecore" in mcp_data["mcpServers"]:
-                        del mcp_data["mcpServers"]["forgecore"]
-                        self.mcp_config_path.write_text(json.dumps(mcp_data, indent=2), encoding="utf-8")
-                        removed.append("Removed 'forgecore' entry from mcp_config.json")
+                    manifest_data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
                 except Exception:
                     pass
 
-            # 2. Clean global rule file
-            if self.global_rule_path.is_file():
-                content = self.global_rule_path.read_text(encoding="utf-8")
-                if "<!-- FORGECORE-MANAGED-START -->" in content:
-                    start_idx = content.find("<!-- FORGECORE-MANAGED-START -->")
-                    end_idx = content.find("<!-- FORGECORE-MANAGED-END -->") + len("<!-- FORGECORE-MANAGED-END -->")
-                    cleaned = (content[:start_idx] + content[end_idx:]).strip()
-                    if cleaned:
-                        self.global_rule_path.write_text(cleaned + "\n", encoding="utf-8")
-                    else:
-                        self.global_rule_path.unlink()
-                    removed.append("Removed Core Contract from global GEMINI.md")
+            backups = manifest_data.get("backups", {}) if isinstance(manifest_data, dict) else {}
+            mcp_backup = backups.get("mcp_config")
+            rule_backup = backups.get("global_rule")
+
+            # 1. Clean or restore MCP config
+            if mcp_backup and Path(mcp_backup).is_file():
+                shutil.copy2(mcp_backup, self.mcp_config_path)
+                removed.append("Restored original mcp_config.json from backup")
+            elif self.mcp_config_path.is_file():
+                if "backups" in manifest_data and mcp_backup is None:
+                    self.mcp_config_path.unlink()
+                    removed.append("Removed created mcp_config.json")
+                else:
+                    try:
+                        mcp_data = json.loads(self.mcp_config_path.read_text(encoding="utf-8"))
+                        if "mcpServers" in mcp_data and "forgecore" in mcp_data["mcpServers"]:
+                            del mcp_data["mcpServers"]["forgecore"]
+                            self.mcp_config_path.write_text(json.dumps(mcp_data, indent=2), encoding="utf-8")
+                            removed.append("Removed 'forgecore' entry from mcp_config.json")
+                    except Exception:
+                        pass
+
+            # 2. Clean or restore global rule file
+            if rule_backup and Path(rule_backup).is_file():
+                shutil.copy2(rule_backup, self.global_rule_path)
+                removed.append("Restored original GEMINI.md from backup")
+            elif self.global_rule_path.is_file():
+                if "backups" in manifest_data and rule_backup is None:
+                    self.global_rule_path.unlink()
+                    removed.append("Removed created global GEMINI.md")
+                else:
+                    content = self.global_rule_path.read_text(encoding="utf-8")
+                    if "<!-- FORGECORE-MANAGED-START -->" in content:
+                        start_idx = content.find("<!-- FORGECORE-MANAGED-START -->")
+                        end_idx = content.find("<!-- FORGECORE-MANAGED-END -->") + len("<!-- FORGECORE-MANAGED-END -->")
+                        cleaned = (content[:start_idx] + content[end_idx:]).strip()
+                        if cleaned:
+                            self.global_rule_path.write_text(cleaned + "\n", encoding="utf-8")
+                        else:
+                            self.global_rule_path.unlink()
+                        removed.append("Removed Core Contract from global GEMINI.md")
 
             # 3. Remove manifest (timestamped backups are preserved for safety)
             if self.manifest_path.is_file():
