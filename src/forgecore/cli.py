@@ -9,16 +9,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from forgecore.adapters.antigravity.adapter import AntigravityAdapter
-from forgecore.adapters.base import InstallOpts
-from forgecore.core.config import ConfigLoader
-from forgecore.core.context import ContextBuilder
-from forgecore.core.models import ProjectConfig
-from forgecore.core.rules import RuleLoader, RuleSelector
-from forgecore.core.standards_linter import StandardsLinter
-from forgecore.core.verify.reporter import Reporter
-from forgecore.core.verify.trust import CommandTrustError, CommandTrustManager
-from forgecore.core.verify.verifier import Verifier
 from forgecore.mcp.server import run_server
 
 app = typer.Typer(
@@ -40,6 +30,9 @@ def init(
     force: bool = typer.Option(False, "--force", "-f", help="Force refresh even if fingerprint is unchanged."),
 ) -> None:
     """Detect stack, scaffold .forgecore/project.yaml, and generate cached context."""
+    from forgecore.core.config import ConfigLoader
+    from forgecore.core.context import ContextBuilder
+
     root_path = Path(path).resolve()
     console.print(f"[bold cyan]Initializing ForgeCore in:[/bold cyan] {root_path}")
 
@@ -69,6 +62,8 @@ def context(
     path: str = typer.Argument(".", help="Path to project root."),
 ) -> None:
     """Print the human-readable project context."""
+    from forgecore.core.context import ContextBuilder
+
     root_path = Path(path).resolve()
     builder = ContextBuilder(root_path)
     profile, config, version, _ = builder.build_context(force=False)
@@ -89,6 +84,9 @@ def standards(
     max_rules: int = typer.Option(15, "--max-rules", "-m", help="Maximum rules to return."),
 ) -> None:
     """Display the ranked, budgeted standards an agent would receive for a task."""
+    from forgecore.core.context import ContextBuilder
+    from forgecore.core.rules import RuleLoader, RuleSelector
+
     root_path = Path(path).resolve()
     builder = ContextBuilder(root_path)
     profile, config, _, _ = builder.build_context(force=False)
@@ -140,6 +138,9 @@ def verify(
     as_json: bool = typer.Option(False, "--json", help="Output report as structured JSON."),
 ) -> None:
     """Execute the deterministic verification loop and output findings."""
+    from forgecore.core.verify.reporter import Reporter
+    from forgecore.core.verify.verifier import Verifier
+
     root_path = Path(path).resolve()
     scope = "all" if all_files else "changed"
 
@@ -163,6 +164,9 @@ def install_antigravity(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without writing files to disk."),
 ) -> None:
     """One-time setup for Google Antigravity (MCP server + global Core Contract)."""
+    from forgecore.adapters.antigravity.adapter import AntigravityAdapter
+    from forgecore.adapters.base import InstallOpts
+
     adapter = AntigravityAdapter()
     opts = InstallOpts(
         workspace_root=Path.cwd(),
@@ -181,6 +185,8 @@ def install_antigravity(
 @uninstall_app.command(name="antigravity")
 def uninstall_antigravity() -> None:
     """Revert changes installed for Google Antigravity."""
+    from forgecore.adapters.antigravity.adapter import AntigravityAdapter
+
     adapter = AntigravityAdapter()
     res = adapter.uninstall()
     if res.success:
@@ -193,6 +199,8 @@ def uninstall_antigravity() -> None:
 @app.command()
 def doctor() -> None:
     """Diagnose environment, installed tools, and client configuration."""
+    from forgecore.adapters.antigravity.adapter import AntigravityAdapter
+
     console.print("[bold cyan]Running ForgeCore Environment Diagnostics...[/bold cyan]\n")
 
     adapter = AntigravityAdapter()
@@ -224,6 +232,8 @@ def doctor() -> None:
 @app.command(name="lint-standards")
 def lint_standards() -> None:
     """Validate standards library against schema, uniqueness, and references."""
+    from forgecore.core.standards_linter import StandardsLinter
+
     console.print("[bold cyan]Linting ForgeCore Standards Library...[/bold cyan]")
     linter = StandardsLinter()
     errors = linter.lint()
@@ -258,12 +268,15 @@ def approve(
         raise typer.Exit(code=1)
 
     root_path = Path(path).resolve()
+    from forgecore.core.config import ConfigLoader
+    from forgecore.core.models import ProjectConfig, RunContext
+    from forgecore.core.verify.runners.tests import TestRunner
+    from forgecore.core.verify.trust import CommandTrustError, CommandTrustManager
+
     loader = ConfigLoader(root_path)
     config = loader.load() if loader.exists() else ProjectConfig()
 
     trust_mgr = CommandTrustManager()
-    from forgecore.core.models import RunContext
-    from forgecore.core.verify.runners.tests import TestRunner
 
     if config.verify.commands:
         commands_to_approve = dict(config.verify.commands)
@@ -305,6 +318,8 @@ def revoke_approval(
     path: str = typer.Argument(".", help="Path to project root."),
 ) -> None:
     """Revoke approval for custom verify commands in a project."""
+    from forgecore.core.verify.trust import CommandTrustManager
+
     root_path = Path(path).resolve()
     trust_mgr = CommandTrustManager()
     if trust_mgr.revoke(root_path):

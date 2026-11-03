@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from forgecore.core.rules import RuleLoader
-from forgecore.core.workflows import WorkflowEngine
+if TYPE_CHECKING:
+    from forgecore.core.rules import RuleLoader
+    from forgecore.core.workflows import WorkflowEngine
 
 
 class MCPResources:
@@ -16,8 +18,24 @@ class MCPResources:
         else:
             repo_root = Path(__file__).resolve().parent.parent.parent.parent
             self.standards_dir = repo_root / "standards"
-        self.rule_loader = RuleLoader(self.standards_dir)
-        self.workflow_engine = WorkflowEngine(self.standards_dir / "workflows")
+        self._rule_loader: RuleLoader | None = None
+        self._workflow_engine: WorkflowEngine | None = None
+
+    @property
+    def rule_loader(self) -> RuleLoader:
+        if self._rule_loader is None:
+            from forgecore.core.rules import RuleLoader
+
+            self._rule_loader = RuleLoader(self.standards_dir)
+        return self._rule_loader
+
+    @property
+    def workflow_engine(self) -> WorkflowEngine:
+        if self._workflow_engine is None:
+            from forgecore.core.workflows import WorkflowEngine
+
+            self._workflow_engine = WorkflowEngine(self.standards_dir / "workflows")
+        return self._workflow_engine
 
     def get_contract(self) -> str:
         contract_path = self.standards_dir / "contract.md"

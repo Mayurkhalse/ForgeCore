@@ -2,31 +2,66 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from forgecore.core.context import ContextBuilder
-from forgecore.core.pathguard import PathGuard, PathGuardError
-from forgecore.core.rules import RuleLoader, RuleSelector
 from forgecore.core.security import (
     fence_nested_untrusted,
     fence_untrusted,
     neutralize_fence_tags,
 )
-from forgecore.core.verify.verifier import Verifier
-from forgecore.core.workflows import WorkflowEngine
+
+if TYPE_CHECKING:
+    from forgecore.core.rules import RuleLoader, RuleSelector
+    from forgecore.core.workflows import WorkflowEngine
 
 
 class MCPToolHandlers:
     """Implementations for the six core ForgeCore MCP tools."""
 
     def __init__(self, standards_dir: Path | str | None = None) -> None:
-        self.rule_loader = RuleLoader(standards_dir)
-        self.workflow_engine = WorkflowEngine(
-            Path(standards_dir) / "workflows" if standards_dir else None
-        )
-        self.all_rules = self.rule_loader.load_all_rules()
-        self.profiles = self.rule_loader.load_profiles()
-        self.selector = RuleSelector(self.all_rules, self.profiles)
+        self.standards_dir = standards_dir
+        self._rule_loader: RuleLoader | None = None
+        self._workflow_engine: WorkflowEngine | None = None
+        self._all_rules: list[Any] | None = None
+        self._profiles: dict[str, Any] | None = None
+        self._selector: RuleSelector | None = None
+
+    @property
+    def rule_loader(self) -> RuleLoader:
+        if self._rule_loader is None:
+            from forgecore.core.rules import RuleLoader
+
+            self._rule_loader = RuleLoader(self.standards_dir)
+        return self._rule_loader
+
+    @property
+    def workflow_engine(self) -> WorkflowEngine:
+        if self._workflow_engine is None:
+            from forgecore.core.workflows import WorkflowEngine
+
+            wf_path = Path(self.standards_dir) / "workflows" if self.standards_dir else None
+            self._workflow_engine = WorkflowEngine(wf_path)
+        return self._workflow_engine
+
+    @property
+    def all_rules(self) -> list[Any]:
+        if self._all_rules is None:
+            self._all_rules = self.rule_loader.load_all_rules()
+        return self._all_rules
+
+    @property
+    def profiles(self) -> dict[str, Any]:
+        if self._profiles is None:
+            self._profiles = self.rule_loader.load_profiles()
+        return self._profiles
+
+    @property
+    def selector(self) -> RuleSelector:
+        if self._selector is None:
+            from forgecore.core.rules import RuleSelector
+
+            self._selector = RuleSelector(self.all_rules, self.profiles)
+        return self._selector
 
     def initialize_project(self, root: str, force: bool = False) -> dict[str, Any]:
         """
@@ -34,6 +69,9 @@ class MCPToolHandlers:
         and initializes context caching.
         """
         try:
+            from forgecore.core.context import ContextBuilder
+            from forgecore.core.pathguard import PathGuard, PathGuardError
+
             root_path = Path(root).resolve()
             PathGuard(root_path)
             builder = ContextBuilder(root_path)
@@ -89,6 +127,8 @@ class MCPToolHandlers:
         Retrieves cached project context, auto-refreshing if manifests or config changed.
         """
         try:
+            from forgecore.core.context import ContextBuilder
+
             root_path = Path(root).resolve()
             builder = ContextBuilder(root_path)
             profile, config, version, refreshed = builder.build_context(force=False)
@@ -133,6 +173,8 @@ class MCPToolHandlers:
         Retrieves ranked and token-budgeted engineering standards for the active task.
         """
         try:
+            from forgecore.core.context import ContextBuilder
+
             root_path = Path(root).resolve()
             builder = ContextBuilder(root_path)
             profile, config, _, _ = builder.build_context(force=False)
@@ -190,6 +232,8 @@ class MCPToolHandlers:
         Returns the procedural workflow rendered with project-specific verification commands.
         """
         try:
+            from forgecore.core.context import ContextBuilder
+
             root_path = Path(root).resolve()
             builder = ContextBuilder(root_path)
             profile, config, _, _ = builder.build_context(force=False)
@@ -233,6 +277,8 @@ class MCPToolHandlers:
         Executes deterministic verifiers (ruff, semgrep, tests, secrets) and returns structured report.
         """
         try:
+            from forgecore.core.verify.verifier import Verifier
+
             root_path = Path(root).resolve()
             verifier = Verifier(root_path)
             report = verifier.verify(scope=scope, checks=checks)
