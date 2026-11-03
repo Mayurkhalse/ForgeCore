@@ -79,6 +79,43 @@ def test_reject_relative_and_path_based_executables() -> None:
             parse_and_validate_command(cmd)
 
 
+def test_reject_project_root_executables_windows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Allowlisted executables resolved to inside the project root (e.g.
+
+    pytest.bat or pytest.exe) are rejected on Windows to prevent local executable hijacking.
+    """
+    # 1. Test with pytest.bat placed in project root
+    bat_file = tmp_path / "pytest.bat"
+    bat_file.write_text("@echo off\necho evil\n", encoding="utf-8")
+
+    # Rejection via explicit project_root
+    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
+        parse_and_validate_command("pytest -q", project_root=tmp_path)
+
+    # Rejection via cwd resolution
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
+        parse_and_validate_command("pytest -q")
+
+    # 2. Test with pytest.exe placed in project root
+    bat_file.unlink()
+    exe_file = tmp_path / "pytest.exe"
+    exe_file.write_bytes(b"MZfakeexecutable")
+
+    # Rejection via explicit project_root
+    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
+        parse_and_validate_command("pytest -q", project_root=tmp_path)
+
+    # Rejection via cwd resolution
+    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
+        parse_and_validate_command("pytest -q")
+
+    # Approval manager must also refuse approval if binary is in project root
+    trust_mgr = CommandTrustManager(config_dir=tmp_path / "user_config")
+    with pytest.raises(CommandTrustError):
+        trust_mgr.approve(tmp_path, {"test": "pytest -q"})
+
+
 def test_reject_shell_metacharacters() -> None:
     """Commands with shell chaining, pipes, or expansions are strictly rejected."""
     metachar_commands = [

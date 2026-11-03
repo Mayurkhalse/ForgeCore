@@ -57,7 +57,7 @@ class TestRunner(Runner):
         custom_cmd = ctx.config.verify.commands.get("test")
         if custom_cmd:
             try:
-                parse_and_validate_command(custom_cmd)
+                parse_and_validate_command(custom_cmd, project_root=ctx.project_root)
             except CommandTrustError as e:
                 return False, f"Custom command rejected: {e}"
 
@@ -91,7 +91,7 @@ class TestRunner(Runner):
         custom_cmd = ctx.config.verify.commands.get("test")
         if custom_cmd:
             try:
-                return parse_and_validate_command(custom_cmd)
+                return parse_and_validate_command(custom_cmd, project_root=ctx.project_root)
             except CommandTrustError:
                 return None
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shlex
 import shutil
 import sys
@@ -55,10 +56,30 @@ class UntrustedCommandError(CommandTrustError):
     """Raised when custom project commands have not been approved by the user."""
 
 
-def parse_and_validate_command(command_str: str) -> list[str]:
+def _is_inside_root(target: Path, root: Path) -> bool:
+    """Checks whether target path is inside or identical to root directory."""
+    try:
+        resolved_target = target.resolve()
+        resolved_root = root.resolve()
+        if resolved_target.is_relative_to(resolved_root):
+            return True
+        if sys.platform == "win32":
+            t_str = str(resolved_target).lower()
+            r_str = str(resolved_root).lower()
+            if t_str == r_str or t_str.startswith(r_str + "\\") or t_str.startswith(r_str + "/"):
+                return True
+        return False
+    except Exception:
+        return False
+
+
+def parse_and_validate_command(
+    command_str: str,
+    project_root: Path | str | None = None,
+) -> list[str]:
     """Parses a command string into an argv list using shlex, rejecting shell
 
-    metacharacters and executables outside the allowlist.
+    metacharacters and executables outside the allowlist or inside the project root.
 
     Allowed executables:
       - ruff
@@ -112,12 +133,31 @@ def parse_and_validate_command(command_str: str) -> list[str]:
             clean_exe = clean_exe[: -len(ext)]
             break
 
+    search_path = None
+    if project_root is not None:
+        search_path = f"{Path(project_root).resolve()}{os.pathsep}{os.environ.get('PATH', '')}"
+
     # Special handling for python -m pytest
     if clean_exe in {"python", "python3"}:
         if len(argv) >= 3 and argv[1] == "-m" and argv[2] == "pytest":
-            resolved = shutil.which(raw_exe)
+            resolved = (
+                shutil.which(raw_exe, path=search_path)
+                if search_path
+                else shutil.which(raw_exe)
+            ) or shutil.which(raw_exe)
             if resolved:
-                resolved_base = Path(resolved).name.lower()
+                resolved_path = Path(resolved).resolve()
+                check_root = (
+                    Path(project_root).resolve()
+                    if project_root is not None
+                    else Path.cwd().resolve()
+                )
+                if _is_inside_root(resolved_path, check_root):
+                    raise DisallowedExecutableError(
+                        f"Resolved executable '{resolved}' is located inside project root '{check_root}'. "
+                        f"Executing repository-local binaries as trusted tools is forbidden."
+                    )
+                resolved_base = resolved_path.name.lower()
                 for ext in (".exe", ".cmd", ".bat"):
                     if resolved_base.endswith(ext):
                         resolved_base = resolved_base[: -len(ext)]
@@ -133,9 +173,24 @@ def parse_and_validate_command(command_str: str) -> list[str]:
 
     # Check against allowlist
     if clean_exe in ALLOWED_BARE_EXECUTABLES:
-        resolved = shutil.which(raw_exe)
+        resolved = (
+            shutil.which(raw_exe, path=search_path)
+            if search_path
+            else shutil.which(raw_exe)
+        ) or shutil.which(raw_exe)
         if resolved:
-            resolved_base = Path(resolved).name.lower()
+            resolved_path = Path(resolved).resolve()
+            check_root = (
+                Path(project_root).resolve()
+                if project_root is not None
+                else Path.cwd().resolve()
+            )
+            if _is_inside_root(resolved_path, check_root):
+                raise DisallowedExecutableError(
+                    f"Resolved executable '{resolved}' is located inside project root '{check_root}'. "
+                    f"Executing repository-local binaries as trusted tools is forbidden."
+                )
+            resolved_base = resolved_path.name.lower()
             for ext in (".exe", ".cmd", ".bat"):
                 if resolved_base.endswith(ext):
                     resolved_base = resolved_base[: -len(ext)]
@@ -237,7 +292,7 @@ class CommandTrustManager:
         # Validate every command before approving
         for name, cmd_str in commands.items():
             try:
-                parse_and_validate_command(cmd_str)
+                parse_and_validate_command(cmd_str, project_root=project_root)
             except CommandTrustError as e:
                 raise CommandTrustError(
                     f"Cannot approve command for '{name}': {e}"

@@ -203,7 +203,7 @@ class Verifier:
                 if cmd_name == "test":
                     continue
                 try:
-                    parse_and_validate_command(cmd_str)
+                    parse_and_validate_command(cmd_str, project_root=self.root)
                 except CommandTrustError as err:
                     skipped.append(
                         SkippedCheck(
