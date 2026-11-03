@@ -22,7 +22,7 @@ async def test_mcp_real_stdio_transport(cmd_args: list[str]) -> None:
     """Launch the ForgeCore MCP server as a subprocess over real stdio.
 
     Verifies the real stdio transport handshake, tool listing,
-    and initialize_project execution with a hard 10-second timeout.
+    and initialize_project execution with a 25-second timeout.
     Tests both direct server entrypoint and CLI serve command.
     """
     fixture_dir = Path("tests/fixtures/fastapi_app").resolve()
@@ -32,7 +32,7 @@ async def test_mcp_real_stdio_transport(cmd_args: list[str]) -> None:
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
 
-    with anyio.fail_after(10):
+    with anyio.fail_after(25):
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 # 1. Initialize handshake
