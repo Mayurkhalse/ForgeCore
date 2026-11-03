@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 
-from forgecore.core.models import Finding, RunContext, Severity
+from forgecore.core.models import Finding, RunContext, Severity, SkippedCheck
 from forgecore.core.verify.runners.base import Runner
 
 SECRET_PATTERNS = [
@@ -43,6 +44,9 @@ IGNORE_EXTENSIONS = {
 class SecretsRunner(Runner):
     """Deterministic regex-based scanner for hardcoded secrets."""
 
+    def __init__(self) -> None:
+        self.skipped: list[SkippedCheck] = []
+
     @property
     def name(self) -> str:
         return "secrets"
@@ -51,9 +55,20 @@ class SecretsRunner(Runner):
         return True
 
     def run(self, ctx: RunContext, files: list[Path]) -> list[Finding]:
+        self.skipped = []
         findings: list[Finding] = []
 
-        for f in files:
+        for idx, f in enumerate(files):
+            # Check deadline periodically every 50 files
+            if idx % 50 == 0 and ctx.deadline and time.perf_counter() >= ctx.deadline:
+                self.skipped.append(
+                    SkippedCheck(
+                        check="secrets",
+                        reason=f"Wall-clock budget expired during secret scanning (inspected {idx}/{len(files)} files).",
+                    )
+                )
+                break
+
             if not f.is_file() or f.suffix.lower() in IGNORE_EXTENSIONS:
                 continue
 

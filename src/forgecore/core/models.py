@@ -197,3 +197,4 @@ class RunContext(BaseModel):
     active_layers: list[str] = Field(default_factory=list)
     changed_files: list[Path] = Field(default_factory=list)
     config: ProjectConfig = Field(default_factory=ProjectConfig)
+    deadline: float | None = None

@@ -131,3 +131,75 @@ def test_ruff_runner_failed_batch_marks_report_incomplete(tmp_path: Path, monkey
     assert report.status == "incomplete"
     assert any("Batch 1/1 failed" in s.reason for s in report.skipped)
 
+
+def test_verifier_scope_in_git_repo(tmp_path: Path) -> None:
+    """Verifies in a git repository, scope defaults to git diff HEAD + untracked files."""
+    import subprocess
+
+    from forgecore.core.verify.verifier import Verifier
+
+    # Initialize git repo
+    subprocess.run(["git", "init"], cwd=str(tmp_path), capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "Tester"], cwd=str(tmp_path), capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=str(tmp_path), capture_output=True, check=True)
+
+    committed = tmp_path / "committed.py"
+    committed.write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "committed.py"], cwd=str(tmp_path), capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=str(tmp_path), capture_output=True, check=True)
+
+    # Modify committed file and add an untracked file
+    committed.write_text("x = 2\n", encoding="utf-8")
+    untracked = tmp_path / "untracked.py"
+    untracked.write_text("y = 3\n", encoding="utf-8")
+
+    verifier = Verifier(tmp_path)
+    changed_files, was_capped, total = verifier.get_changed_files()
+
+    assert not was_capped
+    assert total == 2
+    changed_names = {f.name for f in changed_files}
+    assert changed_names == {"committed.py", "untracked.py"}
+
+
+def test_verifier_scope_non_git_repo_capped(tmp_path: Path) -> None:
+    """Verifies outside git, files are capped at 500 (newest first) and report is marked incomplete."""
+    from forgecore.core.verify.verifier import Verifier
+
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text('[project]\nname = "test-cap"\nversion = "0.1.0"\n', encoding="utf-8")
+
+    # Generate 550 files
+    for i in range(550):
+        f = tmp_path / f"file_{i:03d}.py"
+        f.write_text(f"x = {i}\n", encoding="utf-8")
+
+    verifier = Verifier(tmp_path)
+    changed_files, was_capped, total = verifier.get_changed_files()
+
+    assert was_capped is True
+    assert total >= 550
+    assert len(changed_files) == 500
+
+    report = verifier.verify(scope="changed", checks=["secrets"])
+    assert report.status == "incomplete"
+    assert any(s.check == "scope" and "capped at 500 newest files" in s.reason for s in report.skipped)
+
+
+def test_verifier_wall_clock_budget_expiry(tmp_path: Path) -> None:
+    """Verifies wall-clock budget expiry returns partial results with status incomplete."""
+    from forgecore.core.verify.verifier import Verifier
+
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text('[project]\nname = "test-timeout"\nversion = "0.1.0"\n', encoding="utf-8")
+    f = tmp_path / "sample.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+
+    verifier = Verifier(tmp_path)
+    # Give a tiny 0.000001s timeout to force immediate expiry
+    report = verifier.verify(scope="all", timeout=0.000001)
+
+    assert report.status == "incomplete"
+    assert any("timeout" in s.reason or "budget" in s.reason for s in report.skipped)
+
+

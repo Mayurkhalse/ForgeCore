@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from forgecore.core.models import Finding, RunContext, Severity, SkippedCheck
@@ -52,6 +53,15 @@ class RuffRunner(Runner):
         batches = [py_files[i : i + BATCH_SIZE] for i in range(0, len(py_files), BATCH_SIZE)]
 
         for batch_idx, batch in enumerate(batches, start=1):
+            if ctx.deadline and time.perf_counter() >= ctx.deadline:
+                self.skipped.append(
+                    SkippedCheck(
+                        check="ruff",
+                        reason=f"Batches {batch_idx}-{len(batches)} skipped: wall-clock budget expired.",
+                    )
+                )
+                break
+
             file_args = [str(f.relative_to(ctx.project_root)) for f in batch]
             cmd = [bin_path, "check", "--force-exclude", "--output-format=json", *file_args]
 

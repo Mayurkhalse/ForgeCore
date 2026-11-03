@@ -136,6 +136,7 @@ def standards(
 def verify(
     path: str = typer.Argument(".", help="Path to project root."),
     all_files: bool = typer.Option(False, "--all", "-a", help="Verify all files instead of just changed files."),
+    timeout: float = typer.Option(60.0, "--timeout", help="Wall-clock budget in seconds."),
     as_json: bool = typer.Option(False, "--json", help="Output report as structured JSON."),
 ) -> None:
     """Execute the deterministic verification loop and output findings."""
@@ -143,7 +144,7 @@ def verify(
     scope = "all" if all_files else "changed"
 
     verifier = Verifier(root_path)
-    report = verifier.verify(scope=scope)
+    report = verifier.verify(scope=scope, timeout=timeout)
 
     if as_json:
         console.print(json.dumps(report.model_dump(mode="json"), indent=2))
