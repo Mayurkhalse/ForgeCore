@@ -109,6 +109,26 @@ def test_allow_venv_and_node_modules_binaries(tmp_path: Path, monkeypatch: pytes
     assert parsed_eslint == ["eslint", "src/"]
 
 
+def test_allow_symlinked_python_in_venv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A symlink named 'python' inside .venv/bin pointing to a real python binary is accepted for python -m pytest."""
+    import os
+    import sys
+
+    venv_bin = tmp_path / ".venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    symlink_path = venv_bin / "python"
+
+    real_python = Path(sys.executable).resolve()
+    try:
+        symlink_path.symlink_to(real_python)
+    except (OSError, NotImplementedError):
+        pytest.skip("Symlink creation not permitted or requires elevated privileges on this system")
+
+    monkeypatch.setenv("PATH", f"{venv_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    parsed = parse_and_validate_command("python -m pytest", project_root=tmp_path)
+    assert parsed == ["python", "-m", "pytest"]
+
+
 def test_reject_project_root_hijack_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A bare hijack pytest.bat, pytest.exe, or pytest.cmd placed directly in project root is rejected."""
     # Hijack pytest.bat in project root

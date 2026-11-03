@@ -56,6 +56,23 @@ class UntrustedCommandError(CommandTrustError):
     """Raised when custom project commands have not been approved by the user."""
 
 
+def _is_path_relative_to(child: Path, parent: Path) -> bool:
+    """Checks whether child path is inside or identical to parent directory."""
+    try:
+        c_abs = child.absolute() if not child.is_absolute() else child
+        p_abs = parent.absolute() if not parent.is_absolute() else parent
+        if c_abs.is_relative_to(p_abs):
+            return True
+        if sys.platform == "win32":
+            c_str = str(c_abs).lower()
+            p_str = str(p_abs).lower()
+            if c_str == p_str or c_str.startswith(p_str + "\\") or c_str.startswith(p_str + "/"):
+                return True
+        return False
+    except Exception:
+        return False
+
+
 def _is_disallowed_project_executable(target: Path, root: Path) -> bool:
     """Checks whether target executable is located in an untrusted project directory.
 
@@ -64,19 +81,16 @@ def _is_disallowed_project_executable(target: Path, root: Path) -> bool:
     (e.g. hijack pytest.bat, pytest.exe, pytest.cmd) or arbitrary repo subdirectories are rejected.
     """
     try:
-        resolved_target = target.resolve()
-        resolved_root = root.resolve()
-        if not resolved_target.is_relative_to(resolved_root):
-            if sys.platform == "win32":
-                t_str = str(resolved_target).lower()
-                r_str = str(resolved_root).lower()
-                if not (t_str == r_str or t_str.startswith(r_str + "\\") or t_str.startswith(r_str + "/")):
-                    return False
-            else:
-                return False
+        t_abs = target.absolute() if not target.is_absolute() else target
+        r_abs = root.absolute() if not root.is_absolute() else root
+        if not _is_path_relative_to(t_abs, r_abs):
+            return False
 
-        # Target is inside project root: check if it resides in an allowed environment directory
-        rel = resolved_target.relative_to(resolved_root)
+        try:
+            rel = t_abs.relative_to(r_abs)
+        except ValueError:
+            rel = Path(str(t_abs)[len(str(r_abs)) :].lstrip("\\/"))
+
         rel_parts = [p.lower() for p in rel.parts]
         if len(rel_parts) >= 2:
             if rel_parts[0] == ".venv" and rel_parts[1] in {"scripts", "bin"}:
@@ -162,23 +176,26 @@ def parse_and_validate_command(
                 else shutil.which(raw_exe)
             ) or shutil.which(raw_exe)
             if resolved:
-                resolved_path = Path(resolved).resolve()
+                unresolved_path = Path(resolved)
+                resolved_path = unresolved_path.resolve()
                 check_root = (
                     Path(project_root).resolve()
                     if project_root is not None
                     else Path.cwd().resolve()
                 )
-                if _is_disallowed_project_executable(resolved_path, check_root):
+                if _is_disallowed_project_executable(unresolved_path, check_root) or _is_disallowed_project_executable(resolved_path, check_root):
                     raise DisallowedExecutableError(
                         f"Resolved executable '{resolved}' is located in an untrusted project directory ('{check_root}'). "
                         f"Executing bare repository-local binaries as trusted tools is forbidden."
                     )
-                resolved_base = resolved_path.name.lower()
+                unresolved_base = unresolved_path.name.lower()
                 for ext in (".exe", ".cmd", ".bat"):
-                    if resolved_base.endswith(ext):
-                        resolved_base = resolved_base[: -len(ext)]
+                    if unresolved_base.endswith(ext):
+                        unresolved_base = unresolved_base[: -len(ext)]
                         break
-                if resolved_base not in {"python", "python3"}:
+                if unresolved_base not in {"python", "python3"} and not (
+                    unresolved_base.startswith("python3.") and unresolved_base[8:].isdigit()
+                ):
                     raise DisallowedExecutableError(
                         f"Resolved executable '{resolved}' does not match python."
                     )
@@ -195,23 +212,24 @@ def parse_and_validate_command(
             else shutil.which(raw_exe)
         ) or shutil.which(raw_exe)
         if resolved:
-            resolved_path = Path(resolved).resolve()
+            unresolved_path = Path(resolved)
+            resolved_path = unresolved_path.resolve()
             check_root = (
                 Path(project_root).resolve()
                 if project_root is not None
                 else Path.cwd().resolve()
             )
-            if _is_disallowed_project_executable(resolved_path, check_root):
+            if _is_disallowed_project_executable(unresolved_path, check_root) or _is_disallowed_project_executable(resolved_path, check_root):
                 raise DisallowedExecutableError(
                     f"Resolved executable '{resolved}' is located in an untrusted project directory ('{check_root}'). "
                     f"Executing bare repository-local binaries as trusted tools is forbidden."
                 )
-            resolved_base = resolved_path.name.lower()
+            unresolved_base = unresolved_path.name.lower()
             for ext in (".exe", ".cmd", ".bat"):
-                if resolved_base.endswith(ext):
-                    resolved_base = resolved_base[: -len(ext)]
+                if unresolved_base.endswith(ext):
+                    unresolved_base = unresolved_base[: -len(ext)]
                     break
-            if resolved_base != clean_exe and resolved_base not in ALLOWED_BARE_EXECUTABLES:
+            if unresolved_base != clean_exe and unresolved_base not in ALLOWED_BARE_EXECUTABLES:
                 raise DisallowedExecutableError(
                     f"Resolved executable '{resolved}' is not on the allowlist."
                 )
