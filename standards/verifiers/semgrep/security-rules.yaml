@@ -2,10 +2,9 @@ rules:
   - id: sec-sql-string-concat
     patterns:
       - pattern-either:
-          - pattern: $DB.execute("..." + $VAR)
-          - pattern: $DB.execute(f"...{$VAR}...")
-          - pattern: $CURSOR.execute("..." + $VAR)
-          - pattern: $CURSOR.execute(f"...{$VAR}...")
+          - pattern: $DB.execute($A + $B, ...)
+          - pattern: $DB.execute(f"...{$VAR}...", ...)
+      - pattern-not: $DB.execute("..." + "...", ...)
     message: "SQL query constructed via string concatenation or f-string formatting. Use parameterized query bindings."
     languages: [python]
     severity: ERROR

@@ -6,6 +6,10 @@ cursor.execute("SELECT * FROM users WHERE email = :email", {"email": email})
 db.execute("SELECT * FROM items WHERE id = :id", {"id": item_id})
 
 
+# ok: sec-sql-string-concat
+cursor.execute("SELECT * FROM users " + "WHERE active = 1")
+
+
 # ruleid: sec-sql-string-concat
 cursor.execute(f"SELECT * FROM users WHERE email = '{email}'")
 
