@@ -196,6 +196,8 @@ class Verifier:
 
             runner_findings = runner.run(ctx, target_files)
             findings.extend(runner_findings)
+            if hasattr(runner, "skipped") and runner.skipped:
+                skipped.extend(runner.skipped)
 
         # Check any non-test custom commands defined in project config
         if config.verify.commands:
