@@ -56,3 +56,8 @@ Most contributions will be adding or refining engineering standards in `standard
    uv run pytest
    uv run forgecore lint-standards
    ```
+5. If modifying Semgrep verifier rules or fixtures under `standards/verifiers/semgrep/`:
+   ```bash
+   semgrep --test standards/verifiers/semgrep
+   ```
+   Run `semgrep --test` before pushing verifier changes.

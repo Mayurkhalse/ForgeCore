@@ -1,3 +1,6 @@
+# NOTE: Catches direct single-step unsafe SQL query construction passed to execute().
+# Limitation: Does not catch two-step queries (query built on one line, executed on another);
+# that needs Semgrep taint mode and is planned for v0.2.
 rules:
   - id: sec-sql-string-concat
     patterns:
