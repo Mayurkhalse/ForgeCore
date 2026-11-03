@@ -203,3 +203,69 @@ def test_verifier_wall_clock_budget_expiry(tmp_path: Path) -> None:
     assert any("timeout" in s.reason or "budget" in s.reason for s in report.skipped)
 
 
+def test_verifier_missing_optional_semgrep_produces_warning_and_passes(tmp_path: Path, monkeypatch) -> None:
+    """Verifies missing optional semgrep produces a warning and report passes if required checks pass."""
+    import shutil
+
+    from forgecore.core.verify.verifier import Verifier
+
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text('[project]\nname = "test-opt"\nversion = "0.1.0"\n', encoding="utf-8")
+    f = tmp_path / "sample.py"
+    f.write_text("x = 42\n", encoding="utf-8")
+
+    # Simulate semgrep not found on PATH
+    orig_which = shutil.which
+
+    def mock_which(cmd, *args, **kwargs):
+        if cmd == "semgrep":
+            return None
+        return orig_which(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "which", mock_which)
+
+    verifier = Verifier(tmp_path)
+    report = verifier.verify(scope="all", checks=["secrets", "semgrep"])
+
+    assert report.status == "passed"
+    assert any(s.check == "semgrep" and not s.required for s in report.skipped)
+    assert any("semgrep: optional tool not installed" in w for w in report.warnings)
+
+
+def test_verifier_missing_required_tool_marks_incomplete(tmp_path: Path, monkeypatch) -> None:
+    """Verifies missing required tool (e.g. ruff on python files) produces incomplete status."""
+    from forgecore.core.verify.runners.ruff import RuffRunner
+    from forgecore.core.verify.verifier import Verifier
+
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text('[project]\nname = "test-req"\nversion = "0.1.0"\n', encoding="utf-8")
+    f = tmp_path / "sample.py"
+    f.write_text("x = 42\n", encoding="utf-8")
+
+    # Simulate Ruff unavailable
+    monkeypatch.setattr(RuffRunner, "available", lambda self, ctx: False)
+
+    verifier = Verifier(tmp_path)
+    report = verifier.verify(scope="all", checks=["ruff"])
+
+    assert report.status == "incomplete"
+    assert any(s.check == "ruff" and s.required for s in report.skipped)
+
+
+def test_verifier_unapproved_tests_mark_incomplete(tmp_path: Path) -> None:
+    """Verifies unapproved test suite produces incomplete status with required=True."""
+    from forgecore.core.verify.verifier import Verifier
+
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text('[project]\nname = "test-unapp"\nversion = "0.1.0"\n', encoding="utf-8")
+    test_f = tmp_path / "test_sample.py"
+    test_f.write_text("def test_ok(): pass\n", encoding="utf-8")
+
+    verifier = Verifier(tmp_path)
+    report = verifier.verify(scope="all", checks=["tests"])
+
+    assert report.status == "incomplete"
+    assert any(s.check == "tests" and s.required and "unapproved" in s.reason for s in report.skipped)
+
+
+

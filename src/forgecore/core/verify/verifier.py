@@ -157,6 +157,7 @@ class Verifier:
         )
 
         skipped: list[SkippedCheck] = []
+        warnings: list[str] = []
         was_capped = False
         total_candidates = 0
 
@@ -167,6 +168,7 @@ class Verifier:
                     SkippedCheck(
                         check="scope",
                         reason=f"Non-git repository scan capped at 500 newest files (out of {total_candidates} total files).",
+                        required=True,
                     )
                 )
         else:
@@ -213,6 +215,7 @@ class Verifier:
                     SkippedCheck(
                         check=runner.name,
                         reason=f"Verification exceeded wall-clock budget of {timeout:.1f}s (elapsed: {elapsed:.1f}s); skipped remaining checks.",
+                        required=getattr(runner, "required", True),
                     )
                 )
                 continue
@@ -230,6 +233,8 @@ class Verifier:
                 continue
             if runner.name == "ruff" and not is_python:
                 continue
+            if runner.name == "tests" and hasattr(runner, "has_test_suite") and not runner.has_test_suite(ctx):
+                continue
 
             if hasattr(runner, "check_trust"):
                 trusted, untrusted_reason = runner.check_trust(ctx)
@@ -238,12 +243,22 @@ class Verifier:
                         SkippedCheck(
                             check=runner.name,
                             reason=untrusted_reason or "untrusted command",
+                            required=getattr(runner, "required", True),
                         )
                     )
                     continue
 
             if not runner.available(ctx):
-                skipped.append(SkippedCheck(check=runner.name, reason="not installed or not configured in environment"))
+                is_req = getattr(runner, "required", True)
+                skipped.append(
+                    SkippedCheck(
+                        check=runner.name,
+                        reason="not installed or not configured in environment",
+                        required=is_req,
+                    )
+                )
+                if not is_req:
+                    warnings.append(f"{runner.name}: optional tool not installed or not configured in environment")
                 continue
 
             runner_findings = runner.run(ctx, target_files)
@@ -268,6 +283,7 @@ class Verifier:
                         SkippedCheck(
                             check=f"custom:{cmd_name}",
                             reason=f"Rejected: {err}",
+                            required=True,
                         )
                     )
                     continue
@@ -280,6 +296,7 @@ class Verifier:
                                 f"Custom command '{cmd_str}' from .forgecore/project.yaml is untrusted. "
                                 f"Run 'forgecore approve \"{self.root}\"' to review and approve execution."
                             ),
+                            required=True,
                         )
                     )
 
@@ -295,24 +312,29 @@ class Verifier:
         # Determine status
         fail_on = config.verify.fail_on
         blocking_findings = [f for f in findings if f.severity >= fail_on]
+        required_skipped = [s for s in skipped if s.required]
 
         if blocking_findings:
             status = "failed"
             next_action = f"Fix {len(blocking_findings)} findings at severity >= {fail_on.value}, then call verify_project again."
-        elif skipped or timed_out or was_capped:
+        elif required_skipped or timed_out or was_capped:
             status = "incomplete"
             reasons: list[str] = []
             if timed_out:
                 reasons.append(f"wall-clock timeout ({timeout:.1f}s) exceeded")
             if was_capped:
                 reasons.append("non-git scan capped at 500 files")
-            other_skips = [s.check for s in skipped if s.check not in {"scope", "timeout"}]
-            if other_skips:
-                reasons.append(f"{len(other_skips)} check(s) skipped ({', '.join(other_skips)})")
+            req_skips = [s.check for s in required_skipped if s.check not in {"scope", "timeout"}]
+            if req_skips:
+                reasons.append(f"{len(req_skips)} required check(s) skipped ({', '.join(req_skips)})")
             next_action = f"Verification incomplete: {'; '.join(reasons) if reasons else 'checks skipped'}. Address findings or resolve skipped checks."
         else:
             status = "passed"
-            next_action = "All deterministic verification checks passed. Ready for review."
+            if warnings:
+                opt_names = ", ".join(s.check for s in skipped if not s.required)
+                next_action = f"All required verification checks passed ({len(warnings)} optional check(s) skipped: {opt_names}). Ready for review."
+            else:
+                next_action = "All deterministic verification checks passed. Ready for review."
 
         return VerifyReport(
             status=status,
@@ -321,5 +343,6 @@ class Verifier:
             findings=findings,
             checklist=checklist_items,
             skipped=skipped,
+            warnings=warnings,
             next_action=next_action,
         )

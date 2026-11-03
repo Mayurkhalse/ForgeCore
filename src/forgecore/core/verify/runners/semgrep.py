@@ -16,6 +16,10 @@ class SemgrepRunner(Runner):
     def name(self) -> str:
         return "semgrep"
 
+    @property
+    def required(self) -> bool:
+        return False
+
     def available(self, ctx: RunContext) -> bool:
         return shutil.which("semgrep") is not None
 

@@ -180,6 +180,7 @@ class ChecklistItem(BaseModel):
 class SkippedCheck(BaseModel):
     check: str
     reason: str
+    required: bool = True
 
 
 class VerifyReport(BaseModel):
@@ -189,6 +190,7 @@ class VerifyReport(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     checklist: list[ChecklistItem] = Field(default_factory=list)
     skipped: list[SkippedCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
     next_action: str = ""
 
 

@@ -23,6 +23,10 @@ class RuffRunner(Runner):
     def name(self) -> str:
         return "ruff"
 
+    @property
+    def required(self) -> bool:
+        return True
+
     def _find_binary(self, ctx: RunContext) -> str | None:
         # Check project .venv
         if sys.platform == "win32":

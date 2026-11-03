@@ -26,6 +26,31 @@ class TestRunner(Runner):
     def name(self) -> str:
         return "tests"
 
+    @property
+    def required(self) -> bool:
+        return True
+
+    def has_test_suite(self, ctx: RunContext) -> bool:
+        """Checks if the project has configured or detected tests."""
+        if ctx.config.verify.commands.get("test"):
+            return True
+        if sys.platform == "win32":
+            venv_pytest = ctx.project_root / ".venv" / "Scripts" / "pytest.exe"
+        else:
+            venv_pytest = ctx.project_root / ".venv" / "bin" / "pytest"
+        if venv_pytest.is_file():
+            return True
+        if any(ctx.project_root.glob("test_*.py")) or any(ctx.project_root.glob("*_test.py")):
+            return True
+        if (ctx.project_root / "tests").is_dir():
+            return True
+        if (ctx.project_root / "pytest.ini").is_file() or (ctx.project_root / "conftest.py").is_file():
+            return True
+        pkg_json = ctx.project_root / "package.json"
+        if pkg_json.is_file():
+            return True
+        return False
+
     def _detect_default_command(self, ctx: RunContext) -> list[str] | None:
         """Detects standard framework test runners from project layout."""
         # 1. Python pytest
@@ -36,7 +61,13 @@ class TestRunner(Runner):
 
         if venv_pytest.is_file():
             return [str(venv_pytest), "-q"]
-        if shutil.which("pytest") and any(ctx.project_root.glob("test_*.py")):
+        if shutil.which("pytest") and (
+            any(ctx.project_root.glob("test_*.py"))
+            or any(ctx.project_root.glob("*_test.py"))
+            or (ctx.project_root / "tests").is_dir()
+            or (ctx.project_root / "pytest.ini").is_file()
+            or (ctx.project_root / "conftest.py").is_file()
+        ):
             return ["pytest", "-q"]
 
         # 2. Node npm test

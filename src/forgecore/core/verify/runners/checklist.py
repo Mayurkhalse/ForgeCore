@@ -16,6 +16,10 @@ class ChecklistRunner(Runner):
     def name(self) -> str:
         return "checklist"
 
+    @property
+    def required(self) -> bool:
+        return False
+
     def available(self, ctx: RunContext) -> bool:
         return True
 

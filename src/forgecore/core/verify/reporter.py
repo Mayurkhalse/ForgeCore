@@ -52,7 +52,13 @@ class Reporter:
         if report.skipped:
             self.console.print("\n[yellow]Skipped Checks:[/yellow]")
             for s in report.skipped:
-                self.console.print(f"  - {s.check}: {s.reason}")
+                opt_tag = " [dim](optional)[/dim]" if not s.required else " [red](required)[/red]"
+                self.console.print(f"  - {s.check}{opt_tag}: {s.reason}")
+
+        if report.warnings:
+            self.console.print("\n[yellow]Warnings:[/yellow]")
+            for w in report.warnings:
+                self.console.print(f"  [yellow]![/yellow] {w}")
 
         if report.next_action:
             self.console.print(f"\n[bold cyan]Next Action:[/bold cyan] {report.next_action}\n")

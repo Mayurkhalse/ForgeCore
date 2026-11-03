@@ -51,6 +51,10 @@ class SecretsRunner(Runner):
     def name(self) -> str:
         return "secrets"
 
+    @property
+    def required(self) -> bool:
+        return True
+
     def available(self, ctx: RunContext) -> bool:
         return True
 

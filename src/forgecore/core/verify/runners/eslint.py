@@ -16,6 +16,10 @@ class ESLintRunner(Runner):
     def name(self) -> str:
         return "eslint"
 
+    @property
+    def required(self) -> bool:
+        return True
+
     def _find_binary(self, ctx: RunContext) -> list[str] | None:
         local_bin = ctx.project_root / "node_modules" / ".bin" / ("eslint.cmd" if subprocess.os.name == "nt" else "eslint")
         if local_bin.is_file():

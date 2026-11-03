@@ -15,6 +15,11 @@ class Runner(Protocol):
         """Identifier for the runner (e.g. 'ruff', 'secrets', 'semgrep')."""
         ...
 
+    @property
+    def required(self) -> bool:
+        """Whether the runner is required (True) or optional (False) for verification completion."""
+        ...
+
     def available(self, ctx: RunContext) -> bool:
         """Determines if the runner is available and can execute in the given context."""
         ...
