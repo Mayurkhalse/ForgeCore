@@ -7,6 +7,14 @@ db.execute("SELECT * FROM items WHERE id = :id", {"id": item_id})
 
 
 # ok: sec-sql-string-concat
+cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+
+
+# ok: sec-sql-string-concat
+db.execute("SELECT * FROM items WHERE name = %s AND id = %s", (name, item_id))
+
+
+# ok: sec-sql-string-concat
 cursor.execute("SELECT * FROM users " + "WHERE active = 1")
 
 
@@ -24,3 +32,11 @@ db.execute(f"SELECT * FROM items WHERE id = {item_id}")
 
 # ruleid: sec-sql-string-concat
 db.execute("SELECT * FROM items WHERE name = '" + name + "'")
+
+
+# ruleid: sec-sql-string-concat
+cursor.execute("SELECT * FROM users WHERE email = '{}'".format(email))
+
+
+# ruleid: sec-sql-string-concat
+db.execute("SELECT * FROM items WHERE name = '{name}'".format(name=name))
