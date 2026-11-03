@@ -5,6 +5,7 @@ rules:
           - pattern: $DB.execute($A + $B, ...)
           - pattern: $DB.execute(f"...{$VAR}...", ...)
           - pattern: $DB.execute("...".format(...), ...)
+          - pattern: $DB.execute("..." % $VAR, ...)
       - pattern-not: $DB.execute("..." + "...", ...)
     message: "SQL query constructed via string concatenation or f-string formatting. Use parameterized query bindings."
     languages: [python]

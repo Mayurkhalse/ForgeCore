@@ -40,3 +40,11 @@ cursor.execute("SELECT * FROM users WHERE email = '{}'".format(email))
 
 # ruleid: sec-sql-string-concat
 db.execute("SELECT * FROM items WHERE name = '{name}'".format(name=name))
+
+
+# ruleid: sec-sql-string-concat
+cursor.execute("SELECT * FROM users WHERE email = '%s'" % email)
+
+
+# ruleid: sec-sql-string-concat
+db.execute("SELECT * FROM items WHERE name = '%s' AND id = %s" % (name, item_id))
