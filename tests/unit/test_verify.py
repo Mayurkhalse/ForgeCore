@@ -268,4 +268,103 @@ def test_verifier_unapproved_tests_mark_incomplete(tmp_path: Path) -> None:
     assert any(s.check == "tests" and s.required and "unapproved" in s.reason for s in report.skipped)
 
 
+def test_checklist_cap_and_ranking(tmp_path: Path) -> None:
+    """Verifies ChecklistRunner caps items at 8, ranked by severity and relevance to changed files."""
+    from forgecore.core.models import (
+        Category,
+        ProjectConfig,
+        Rule,
+        RuleVerifier,
+        RunContext,
+        Severity,
+        VerifierType,
+    )
+    from forgecore.core.verify.runners.checklist import ChecklistRunner
+
+    # Create 12 checklist rules of varying severities and layers
+    rules: list[Rule] = []
+    # 2 LOW rules
+    for i in range(2):
+        rules.append(
+            Rule(
+                id=f"LOW-00{i}",
+                title=f"Low rule {i}",
+                layer="general",
+                category=Category.ARCHITECTURE,
+                severity=Severity.LOW,
+                rule="low guidance",
+                verify=RuleVerifier(type=VerifierType.CHECKLIST, prompt=f"Prompt low {i}"),
+            )
+        )
+    # 3 MEDIUM rules
+    for i in range(3):
+        rules.append(
+            Rule(
+                id=f"MED-00{i}",
+                title=f"Med rule {i}",
+                layer="general",
+                category=Category.ARCHITECTURE,
+                severity=Severity.MEDIUM,
+                rule="med guidance",
+                verify=RuleVerifier(type=VerifierType.CHECKLIST, prompt=f"Prompt med {i}"),
+            )
+        )
+    # 5 HIGH rules, one of which is security-relevant to auth
+    for i in range(5):
+        is_sec = i == 0
+        rules.append(
+            Rule(
+                id=f"HIGH-00{i}",
+                title="Auth token protection" if is_sec else f"High rule {i}",
+                layer="security" if is_sec else "general",
+                category=Category.SECURITY if is_sec else Category.ARCHITECTURE,
+                severity=Severity.HIGH,
+                rule="high guidance",
+                verify=RuleVerifier(type=VerifierType.CHECKLIST, prompt="Prompt high auth" if is_sec else f"Prompt high {i}"),
+            )
+        )
+    # 2 CRITICAL rules
+    for i in range(2):
+        rules.append(
+            Rule(
+                id=f"CRIT-00{i}",
+                title=f"Crit rule {i}",
+                layer="database",
+                category=Category.SECURITY,
+                severity=Severity.CRITICAL,
+                rule="crit guidance",
+                verify=RuleVerifier(type=VerifierType.CHECKLIST, prompt=f"Prompt crit {i}"),
+            )
+        )
+
+    # Total 12 checklist rules created
+    assert len(rules) == 12
+
+    # Run with changed file = src/auth/token.py
+    ctx = RunContext(
+        project_root=tmp_path,
+        changed_files=[tmp_path / "src" / "auth" / "token.py"],
+        config=ProjectConfig(),
+    )
+
+    runner = ChecklistRunner(rules)
+    items = runner.get_checklist_items(ctx)
+
+    # Must be capped at exactly 8
+    assert len(items) == 8
+
+    # The 2 CRITICAL rules must come first
+    assert items[0].rule_id == "CRIT-000"
+    assert items[1].rule_id == "CRIT-001"
+
+    # Among HIGH rules, HIGH-000 (security auth rule) has highest relevance to src/auth/token.py
+    assert items[2].rule_id == "HIGH-000"
+
+    # The 2 LOW rules should be cut off by the cap of 8 (2 CRIT + 5 HIGH + 1 MED = 8)
+    returned_ids = [it.rule_id for it in items]
+    assert "LOW-000" not in returned_ids
+    assert "LOW-001" not in returned_ids
+
+
+
 
