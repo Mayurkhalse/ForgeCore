@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -91,6 +92,8 @@ def test_allow_venv_and_node_modules_binaries(tmp_path: Path, monkeypatch: pytes
     venv_bin.mkdir(parents=True)
     venv_pytest = venv_bin / ("pytest.exe" if sys.platform == "win32" else "pytest")
     venv_pytest.write_bytes(b"MZfakeexecutable")
+    if sys.platform != "win32":
+        venv_pytest.chmod(0o755)
 
     # Put .venv/Scripts at the front of PATH
     monkeypatch.setenv("PATH", f"{venv_bin}{os.pathsep}{os.environ.get('PATH', '')}")
@@ -103,6 +106,8 @@ def test_allow_venv_and_node_modules_binaries(tmp_path: Path, monkeypatch: pytes
     nm_bin.mkdir(parents=True)
     nm_eslint = nm_bin / ("eslint.cmd" if sys.platform == "win32" else "eslint")
     nm_eslint.write_text("@echo off\n", encoding="utf-8")
+    if sys.platform != "win32":
+        nm_eslint.chmod(0o755)
 
     monkeypatch.setenv("PATH", f"{nm_bin}{os.pathsep}{os.environ.get('PATH', '')}")
     parsed_eslint = parse_and_validate_command("eslint src/", project_root=tmp_path)
@@ -130,26 +135,40 @@ def test_allow_symlinked_python_in_venv(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 def test_reject_project_root_hijack_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A bare hijack pytest.bat, pytest.exe, or pytest.cmd placed directly in project root is rejected."""
-    # Hijack pytest.bat in project root
-    hijack_bat = tmp_path / "pytest.bat"
-    hijack_bat.write_text("@echo off\necho evil\n", encoding="utf-8")
+    """A bare hijack executable placed directly in project root is rejected."""
+    if sys.platform == "win32":
+        # Windows: hijack pytest.bat in project root
+        hijack_bat = tmp_path / "pytest.bat"
+        hijack_bat.write_text("@echo off\necho evil\n", encoding="utf-8")
 
-    with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
-        parse_and_validate_command("pytest -q", project_root=tmp_path)
+        with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
+            parse_and_validate_command("pytest -q", project_root=tmp_path)
 
-    # Rejection via cwd resolution when running inside project root
-    monkeypatch.chdir(tmp_path)
-    with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
-        parse_and_validate_command("pytest -q")
+        # Rejection via cwd resolution when running inside project root
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
+            parse_and_validate_command("pytest -q")
 
-    # Hijack pytest.exe in project root
-    hijack_bat.unlink()
-    hijack_exe = tmp_path / "pytest.exe"
-    hijack_exe.write_bytes(b"MZfakeexecutable")
+        # Hijack pytest.exe in project root
+        hijack_bat.unlink()
+        hijack_exe = tmp_path / "pytest.exe"
+        hijack_exe.write_bytes(b"MZfakeexecutable")
 
-    with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
-        parse_and_validate_command("pytest -q", project_root=tmp_path)
+        with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
+            parse_and_validate_command("pytest -q", project_root=tmp_path)
+    else:
+        # POSIX: hijack executable file named pytest in project root
+        hijack_file = tmp_path / "pytest"
+        hijack_file.write_text("#!/bin/sh\necho evil\n", encoding="utf-8")
+        hijack_file.chmod(0o755)
+
+        with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
+            parse_and_validate_command("pytest -q", project_root=tmp_path)
+
+        # Rejection via cwd resolution when running inside project root
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
+            parse_and_validate_command("pytest -q")
 
     trust_mgr = CommandTrustManager(config_dir=tmp_path / "user_config")
     with pytest.raises(CommandTrustError):

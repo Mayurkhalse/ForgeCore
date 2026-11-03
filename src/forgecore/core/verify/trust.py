@@ -163,26 +163,20 @@ def parse_and_validate_command(
             clean_exe = clean_exe[: -len(ext)]
             break
 
-    search_path = None
-    if project_root is not None:
-        search_path = f"{Path(project_root).resolve()}{os.pathsep}{os.environ.get('PATH', '')}"
+    check_root = (
+        Path(project_root).resolve()
+        if project_root is not None
+        else Path.cwd().resolve()
+    )
+    search_path = f"{check_root}{os.pathsep}{os.environ.get('PATH', '')}"
 
     # Special handling for python -m pytest
     if clean_exe in {"python", "python3"}:
         if len(argv) >= 3 and argv[1] == "-m" and argv[2] == "pytest":
-            resolved = (
-                shutil.which(raw_exe, path=search_path)
-                if search_path
-                else shutil.which(raw_exe)
-            ) or shutil.which(raw_exe)
+            resolved = shutil.which(raw_exe, path=search_path) or shutil.which(raw_exe)
             if resolved:
                 unresolved_path = Path(resolved)
                 resolved_path = unresolved_path.resolve()
-                check_root = (
-                    Path(project_root).resolve()
-                    if project_root is not None
-                    else Path.cwd().resolve()
-                )
                 if _is_disallowed_project_executable(unresolved_path, check_root) or _is_disallowed_project_executable(resolved_path, check_root):
                     raise DisallowedExecutableError(
                         f"Resolved executable '{resolved}' is located in an untrusted project directory ('{check_root}'). "
@@ -206,19 +200,10 @@ def parse_and_validate_command(
 
     # Check against allowlist
     if clean_exe in ALLOWED_BARE_EXECUTABLES:
-        resolved = (
-            shutil.which(raw_exe, path=search_path)
-            if search_path
-            else shutil.which(raw_exe)
-        ) or shutil.which(raw_exe)
+        resolved = shutil.which(raw_exe, path=search_path) or shutil.which(raw_exe)
         if resolved:
             unresolved_path = Path(resolved)
             resolved_path = unresolved_path.resolve()
-            check_root = (
-                Path(project_root).resolve()
-                if project_root is not None
-                else Path.cwd().resolve()
-            )
             if _is_disallowed_project_executable(unresolved_path, check_root) or _is_disallowed_project_executable(resolved_path, check_root):
                 raise DisallowedExecutableError(
                     f"Resolved executable '{resolved}' is located in an untrusted project directory ('{check_root}'). "
