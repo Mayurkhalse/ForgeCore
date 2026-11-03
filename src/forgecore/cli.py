@@ -230,7 +230,9 @@ def doctor() -> None:
 
 
 @app.command(name="lint-standards")
-def lint_standards() -> None:
+def lint_standards(
+    summary: bool = typer.Option(False, "--summary", "-s", help="Print layer rules and machine verifiers summary table."),
+) -> None:
     """Validate standards library against schema, uniqueness, and references."""
     from forgecore.core.standards_linter import StandardsLinter
 
@@ -245,6 +247,9 @@ def lint_standards() -> None:
         sys.exit(1)
     else:
         console.print("[bold green]All standards, profiles, and verifiers passed schema validation![/bold green]")
+
+    if summary:
+        console.print(f"\n{linter.generate_summary_table()}\n")
 
 
 def _is_interactive_tty() -> bool:

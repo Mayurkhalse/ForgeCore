@@ -114,3 +114,21 @@ def test_rule_selector_supersedes():
 
     assert len(selected) == 1
     assert selected[0].id == "SPEC-001"
+
+
+def test_standards_summary_table_generation():
+    import subprocess
+    import sys
+
+    from forgecore.core.standards_linter import StandardsLinter
+
+    linter = StandardsLinter()
+    table = linter.generate_summary_table()
+    assert "| Layer / Stack | Total Rules | Machine Verifiers | Status in v0.1 |" in table
+    assert "| `react` | 12 | 6 (ESLint) | **Stable** |" in table
+    assert "| `fastapi` | 13 | 3 (1 Semgrep, 2 Ruff) | **Experimental**" in table
+    assert "| `spring-boot` | 12 | 0 (guidance / checklist) | **Experimental**" in table
+
+    # Verify scripts/count_rules.py executes and outputs the exact same table
+    res = subprocess.run([sys.executable, "scripts/count_rules.py"], capture_output=True, text=True, check=True)
+    assert res.stdout.strip() == table.strip()

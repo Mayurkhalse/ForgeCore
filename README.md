@@ -194,19 +194,21 @@ Covering five stacks in v0.1 is ambitious, so depth is explicit and honest:
 
 #### Layer Quality & Stability Status in v0.1
 
+*(Dynamically generated via `python scripts/count_rules.py` and validated by `forgecore lint-standards --summary`)*
+
 | Layer / Stack | Total Rules | Machine Verifiers | Status in v0.1 |
 |---|---|---|---|
-| `universal` | 13 | 13 (Secrets, PathGuard, conventions) | **Stable** |
-| `security` | 12 | 8 (Semgrep security rules, Secrets) | **Stable** |
-| `testing` | 12 | 6 (TestRunner pytest/npm checks) | **Stable** |
-| `api-design` | 12 | 6 (Semgrep contract & API checks) | **Stable** |
-| `observability`| 12 | 6 (Semgrep structured logging checks) | **Stable** |
-| `react` | 12 | 5 (ESLint React rules) | **Stable** |
-| `fastapi` | 12 | 2 (Semgrep FastAPI rules) | **Experimental** (missing 3 verifiers) |
-| `node-express`| 12 | 1 (ESLint / Semgrep) | **Experimental** (missing 4 verifiers) |
-| `react-native`| 12 | 0 (guidance only) | **Experimental** (missing 5 verifiers) |
-| `spring-boot` | 12 | 0 (guidance only) | **Experimental** (missing 5 verifiers) |
-| `python-ml` | 12 | 0 (guidance only) | **Experimental** (missing 5 verifiers) |
+| `universal` | 4 | 2 (1 Secrets, 1 Ruff) | **Cross-cutting** |
+| `security` | 3 | 1 (Semgrep) | **Cross-cutting** |
+| `testing` | 2 | 0 (guidance / checklist) | **Cross-cutting** |
+| `api-design` | 2 | 0 (guidance / checklist) | **Cross-cutting** |
+| `observability` | 1 | 0 (guidance / checklist) | **Cross-cutting** |
+| `react` | 12 | 6 (ESLint) | **Stable** |
+| `fastapi` | 13 | 3 (1 Semgrep, 2 Ruff) | **Experimental** (missing 2 verifiers) |
+| `node-express` | 12 | 2 (ESLint) | **Experimental** (missing 3 verifiers) |
+| `react-native` | 12 | 2 (ESLint) | **Experimental** (missing 3 verifiers) |
+| `spring-boot` | 12 | 0 (guidance / checklist) | **Experimental** (missing 5 verifiers) |
+| `python-ml` | 12 | 1 (Ruff) | **Experimental** (missing 4 verifiers) |
 
 ### 6.3 Rule schema
 
@@ -422,7 +424,10 @@ Reusable prompt templates (`new-feature`, `fix-bug`) that wrap the workflow, so 
 
 ### 8.4 Prompt-injection hygiene
 
-ForgeCore returns content from project files (e.g., package names, file paths). Output is **data, not instructions**: strings from the project are fenced and labeled `untrusted_project_data`, and ForgeCore never returns raw file contents beyond what verification output requires.
+ForgeCore returns content derived from project files (e.g., project names, file paths, rule override reasons, finding messages). Output is **data, not instructions**:
+- Project-sourced strings are fenced with `<untrusted_project_data>...</untrusted_project_data>`.
+- Any untrusted strings containing attempts to break out of fences (such as closing tag variants `</untrusted_project_data>`) have those sequences neutralized case-insensitively and whitespace-tolerantly (`[untrusted_project_data tag neutralized]`).
+- Project text is excluded from trusted MCP fields.
 
 ---
 
@@ -450,25 +455,27 @@ verify_project(scope="changed")
 
 ### 9.1 Runners
 
-| Runner | Used for | Notes |
-|---|---|---|
-| `ruff` | Python lint/format/security subset | Project-local or bundled |
-| `semgrep` | ForgeCore custom rules + community packs | Rules in `standards/**/verifiers/semgrep/` |
-| `eslint` / `tsc` | JS/TS | Uses the project's own config and binaries |
-| `pytest` / `npm test` / `mvn test` | Tests | Command from `project.yaml` |
-| `gitleaks`-style secret scan | Hardcoded secrets | Built-in regex pass in v0.1; external tool optional |
-| `checklist` | Non-automatable rules | Returned as "agent must confirm" items |
+| Runner | Used for | Classification | Notes |
+|---|---|---|---|
+| `secrets` | Hardcoded secret detection | **Required** | Built-in regex scanner in v0.1; runs in-process |
+| `ruff` | Python lint/format/security subset | **Required** | Project-local or virtualenv `ruff`; batches files and enforces `--force-exclude` |
+| `eslint` | JavaScript & TypeScript static linting | **Required** | Project-local `node_modules/.bin/eslint` or `npx eslint` (`tsc` planned) |
+| `tests` | Project test execution | **Required** | Executes allowlisted test suites (`pytest`, `npm test`, etc.) only after interactive user approval |
+| `semgrep` | Custom YAML rules + community packs | **Optional** | Rules in `standards/verifiers/semgrep/`; missing tool produces a warning without failing or marking incomplete |
+| `checklist` | Non-automatable rules | **Optional** | Returns at most 8 items ranked by severity and relevance to changed files |
 
-Runners implement one interface:
+Runners implement the `Runner` protocol:
 
 ```python
 class Runner(Protocol):
     name: str
+    required: bool
     def available(self, ctx: RunContext) -> bool: ...
     def run(self, ctx: RunContext, files: list[Path]) -> list[Finding]: ...
 ```
 
-Missing tools degrade gracefully: the report says `skipped: semgrep not installed`, and never silently passes.
+Missing **required** tools or unapproved test suites degrade verification status to `incomplete`; missing **optional** tools (`semgrep` on Windows) emit diagnostic warnings in the report without blocking completion.
+By default in a git repository, verification scope defaults to `git diff --name-only HEAD` plus untracked files; non-git directories are capped at 500 files with a 60-second wall-clock budget.
 
 ### 9.2 Report schema
 
@@ -542,12 +549,14 @@ Built with Typer. Same core functions as the MCP tools.
 | `forgecore init [path]` | Detect stack, create `.forgecore/project.yaml`, build context |
 | `forgecore context [path]` | Print the current project context |
 | `forgecore standards [path] --task "..."` | Print standards the agent would receive |
-| `forgecore verify [path] [--all] [--json]` | Run the verify loop |
-| `forgecore install antigravity` | One-time client setup |
+| `forgecore verify [path] [--all] [--json] [--timeout N]` | Run the verify loop (defaults to git diff + untracked) |
+| `forgecore approve [path]` | Interactively approve test command set for a project (requires real TTY) |
+| `forgecore revoke-approval [path]` | Revoke approved test commands for a project |
+| `forgecore install antigravity` | One-time client setup (with timestamped configuration backups) |
 | `forgecore uninstall antigravity` | Remove what install added |
 | `forgecore doctor` | Diagnose setup (Python, tools, client config) |
-| `forgecore lint-standards` | Validate the standards library (for contributors and CI) |
-| `forgecore serve` | Start the MCP server (what clients launch) |
+| `forgecore lint-standards [--summary]` | Validate standards library schema and print layer summary |
+| `forgecore serve` | Start the MCP server over stdio |
 
 ---
 
@@ -561,19 +570,19 @@ forgecore/
 │   ├── core/
 │   │   ├── models.py               # Pydantic: Rule, StackProfile, Finding, VerifyReport
 │   │   ├── config.py               # ConfigLoader
-│   │   ├── stack_detector.py       # + detectors/
-│   │   ├── detectors/
-│   │   │   ├── base.py
-│   │   │   ├── react.py  react_native.py  node.py
-│   │   │   ├── fastapi.py  spring.py  python_ml.py
+│   │   ├── stack_detector.py       # StackDetector (walks project files up to depth 6)
+│   │   ├── detectors/              # modular detectors (planned post-v0.1)
 │   │   ├── rules.py                # loader + RuleSelector
 │   │   ├── budget.py               # BudgetManager
 │   │   ├── context.py              # ContextBuilder, fingerprinting
 │   │   ├── workflows.py            # WorkflowEngine
 │   │   ├── pathguard.py            # PathGuard
+│   │   ├── security.py             # prompt-injection fencing & sanitization
+│   │   ├── standards_linter.py     # schema validation & summary table generator
 │   │   └── verify/
 │   │       ├── verifier.py         # orchestration
 │   │       ├── reporter.py
+│   │       ├── trust.py            # CommandTrustManager & command parsing allowlist
 │   │       └── runners/
 │   │           ├── base.py  ruff.py  semgrep.py
 │   │           ├── eslint.py  tests.py  secrets.py  checklist.py
@@ -585,8 +594,8 @@ forgecore/
 │   └── adapters/
 │       ├── base.py                 # ClientAdapter protocol
 │       └── antigravity/
-│           ├── adapter.py
-│           └── templates/          # rule file + MCP config templates
+│           ├── adapter.py          # AntigravityAdapter (includes inlined templates & backups)
+│           └── templates/          # standalone external templates (planned)
 │
 ├── standards/                      # data, not code
 │   ├── contract.md                 # the Core Contract (source of truth)
@@ -595,29 +604,41 @@ forgecore/
 │   ├── profiles/                   # compositions of layers
 │   ├── workflows/                  # new-project, feature, bugfix, refactor (.md)
 │   └── verifiers/
-│       ├── semgrep/                # custom Semgrep rules
-│       └── eslint/                 # shared ESLint snippets
+│       ├── semgrep/                # custom Semgrep rules & test fixtures
+│       └── eslint/                 # shared ESLint snippets (planned)
 │
 ├── tests/
-│   ├── unit/                       # detectors, selector, budget, pathguard
-│   ├── integration/                # MCP server via client, verify loop
+│   ├── unit/                       # detectors, selector, budget, pathguard, trust, verify
+│   ├── integration/                # real stdio transport, install round-trip
 │   └── fixtures/                   # tiny sample projects per stack
 │
-├── evals/                          # A/B benchmark
-│   ├── prompts/                    # the standard task set
-│   ├── rubric.yaml                 # measurable criteria
-│   ├── run_eval.py
-│   └── results/                    # published, reproducible
+├── evals/                          # A/B benchmark (planned post-v0.1)
+│   ├── prompts/                    # the standard task set (planned)
+│   ├── rubric.yaml                 # measurable criteria (planned)
+│   ├── run_eval.py                 # (planned)
+│   └── results/                    # published, reproducible (planned)
 │
 ├── docs/
-│   ├── ARCHITECTURE.md  RULE_AUTHORING.md  ADAPTERS.md
-│   ├── antigravity-notes.md        # verified facts (Milestone 0)
-│   └── ROADMAP.md
+│   ├── AUDIT.md                    # verified audit report and evidence
+│   ├── SECURITY.md                 # trust boundaries & runner classifications
+│   ├── antigravity-notes.md        # verified Antigravity integration notes
+│   ├── ARCHITECTURE.md             # (planned)
+│   ├── RULE_AUTHORING.md           # (planned)
+│   ├── ADAPTERS.md                 # (planned)
+│   └── ROADMAP.md                  # (planned)
 │
 ├── .github/
-│   ├── workflows/ci.yml            # lint, test, lint-standards, forgecore verify
-│   ├── ISSUE_TEMPLATE/  PULL_REQUEST_TEMPLATE.md
-├── scripts/setup.ps1  setup.sh
+│   ├── workflows/ci.yml            # lint, test, lint-standards, semgrep verifiers
+│   ├── ISSUE_TEMPLATE/             # (planned)
+│   └── PULL_REQUEST_TEMPLATE.md    # (planned)
+├── scripts/
+│   ├── count_rules.py              # rule-count table generator
+│   ├── benchmark_20k.py            # 20k file scalability benchmark
+│   ├── clean_install_check.py      # clean environment verification script
+│   ├── measure_startup.py          # cold startup benchmark
+│   ├── run_stdio_loop.py           # stdio transport reliability test
+│   ├── setup.ps1                   # (planned)
+│   └── setup.sh                    # (planned)
 ├── pyproject.toml                  # uv-managed
 ├── README.md  CONTRIBUTING.md  CODE_OF_CONDUCT.md  SECURITY.md
 ├── CHANGELOG.md  LICENSE  NOTICE   # NOTICE credits ECC if any MIT code is reused
@@ -634,7 +655,7 @@ forgecore/
 | Path traversal / reading outside project | `PathGuard` on every access; root pinned at init |
 | Secret exfiltration into agent context | Deny-list for secret files; never return raw file contents; secret scan reports location, not value |
 | Prompt injection via project content | Project-derived strings fenced as untrusted data; ForgeCore output never contains instructions sourced from project files |
-| Arbitrary command execution | Only allowlisted runners and commands from `project.yaml`; no shell string interpolation (argv lists only); timeouts; cwd = project root |
+| Arbitrary command execution | Only allowlisted runners and commands from `project.yaml`; resolved binary checked against project root hijacking; interactive user approval via `forgecore approve` required on a real TTY for ANY test execution; no shell string interpolation (argv lists only); timeouts; cwd = project root |
 | Malicious contributed rules/verifiers | Standards are data validated by schema; Semgrep verifiers reviewed in PR; no code execution from standards |
 | Supply chain | Pinned dependencies, minimal dep set, `pip-audit` in CI, signed releases (later) |
 
@@ -651,6 +672,8 @@ ForgeCore does **not** claim to control IDE permissions (file writes, terminal a
 - **Standards CI:** `forgecore lint-standards` validates every rule against the schema, checks verifier refs exist, and runs each Semgrep rule against its good/bad examples (the "bad" example must trigger it, the "good" must not).
 
 ### 14.2 The proof: A/B evaluation
+
+*(Note: Automated agent A/B evaluation suite under `evals/` is planned post-v0.1; v0.1 establishes baseline verification through deterministic test suites and benchmark scripts under `scripts/`)*.
 
 The README's claims must be backed by evidence. `evals/` defines **10+ standard tasks** (e.g., "add JWT auth with refresh tokens", "add a paginated list endpoint with filtering"), each run in the same agent **with and without** ForgeCore, scored by automated rubric:
 

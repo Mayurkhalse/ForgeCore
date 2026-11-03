@@ -159,3 +159,80 @@ class StandardsLinter:
                         )
 
         return errors
+
+    def generate_summary_table(self) -> str:
+        """Generates a Markdown table summarizing total rules and machine verifiers per layer."""
+        from collections import defaultdict
+
+        from forgecore.core.models import VerifierType
+        from forgecore.core.rules import RuleLoader
+
+        loader = RuleLoader(self.standards_dir)
+        rules = loader.load_all_rules()
+
+        layer_rules: dict[str, list[Rule]] = defaultdict(list)
+        for r in rules:
+            layer_rules[r.layer].append(r)
+
+        cross_cutting = ["universal", "security", "testing", "api-design", "observability"]
+        stack_layers = ["react", "fastapi", "node-express", "react-native", "spring-boot", "python-ml"]
+        all_layers = cross_cutting + [lyr for lyr in stack_layers if lyr not in cross_cutting]
+        for lyr in sorted(layer_rules.keys()):
+            if lyr not in all_layers:
+                all_layers.append(lyr)
+
+        lines = [
+            "| Layer / Stack | Total Rules | Machine Verifiers | Status in v0.1 |",
+            "|---|---|---|---|",
+        ]
+
+        for layer in all_layers:
+            r_list = layer_rules.get(layer, [])
+            total = len(r_list)
+
+            # Count machine verifiers
+            machine_counts: dict[str, int] = defaultdict(int)
+            for r in r_list:
+                if r.verify and r.verify.type in (
+                    VerifierType.SEMGREP,
+                    VerifierType.RUFF,
+                    VerifierType.ESLINT,
+                    VerifierType.SECRETS,
+                    VerifierType.PYTEST_MARKER,
+                    VerifierType.COMMAND,
+                ):
+                    v_type = r.verify.type.value
+                    if v_type == "semgrep":
+                        machine_counts["Semgrep"] += 1
+                    elif v_type == "ruff":
+                        machine_counts["Ruff"] += 1
+                    elif v_type == "eslint":
+                        machine_counts["ESLint"] += 1
+                    elif v_type == "secrets":
+                        machine_counts["Secrets"] += 1
+                    else:
+                        machine_counts[v_type.capitalize()] += 1
+
+            total_machine = sum(machine_counts.values())
+
+            if total_machine > 0:
+                details = ", ".join(
+                    f"{count} {name}" if len(machine_counts) > 1 else name
+                    for name, count in machine_counts.items()
+                )
+                verifiers_str = f"{total_machine} ({details})"
+            else:
+                verifiers_str = "0 (guidance / checklist)"
+
+            if layer in cross_cutting:
+                status_str = "**Cross-cutting**"
+            else:
+                if total >= 12 and total_machine >= 5:
+                    status_str = "**Stable**"
+                else:
+                    missing = max(0, 5 - total_machine)
+                    status_str = f"**Experimental** (missing {missing} verifier{'s' if missing != 1 else ''})"
+
+            lines.append(f"| `{layer}` | {total} | {verifiers_str} | {status_str} |")
+
+        return "\n".join(lines)
