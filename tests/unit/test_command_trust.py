@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from forgecore.cli import app
 from forgecore.core.models import ProjectConfig, RunContext, VerifyConfig
 from forgecore.core.verify.runners.tests import TestRunner
 from forgecore.core.verify.trust import (
@@ -302,3 +304,42 @@ def test_default_test_suite_requires_approval(tmp_path: Path) -> None:
         s for s in approved_report.skipped if s.check == "tests" and "unapproved" in s.reason.lower()
     ]
     assert len(unapproved_test_skips) == 0
+
+
+def test_cli_approve_refuses_when_stdin_not_a_tty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`forgecore approve` must refuse execution with non-zero exit when stdin is not a TTY."""
+    # Under CliRunner, sys.stdin is not a TTY by default
+    runner = CliRunner()
+    result = runner.invoke(app, ["approve", str(tmp_path)])
+    assert result.exit_code != 0
+    assert "requires an interactive terminal (TTY)" in result.stdout
+
+
+def test_cli_approve_interactive_confirmation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`forgecore approve` prompts on interactive TTY: rejects on 'n', approves on 'y'."""
+    monkeypatch.setattr("forgecore.cli._is_interactive_tty", lambda: True)
+
+    # Set user home so approvals write to tmp_path
+    fake_home = tmp_path / "user_home"
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
+
+    project_root = tmp_path / "my_project"
+    project_root.mkdir()
+    (project_root / "test_app.py").write_text("def test_foo(): pass\n", encoding="utf-8")
+
+    runner = CliRunner()
+
+    # 1. User answers 'n' -> aborts with non-zero exit, not approved
+    res_no = runner.invoke(app, ["approve", str(project_root)], input="n\n")
+    assert res_no.exit_code != 0
+    assert "Approval cancelled" in res_no.stdout
+
+    trust_mgr = CommandTrustManager(config_dir=fake_home / ".forgecore")
+    assert trust_mgr.is_approved(project_root, {"test": "pytest -q"}) is False
+
+    # 2. User answers 'y' -> succeeds (exit 0), approved
+    res_yes = runner.invoke(app, ["approve", str(project_root)], input="y\n")
+    assert res_yes.exit_code == 0
+    assert "Successfully approved test command(s)" in res_yes.stdout
+    assert trust_mgr.is_approved(project_root, {"test": "pytest -q"}) is True

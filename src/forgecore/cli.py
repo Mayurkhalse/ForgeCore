@@ -236,11 +236,26 @@ def lint_standards() -> None:
         console.print("[bold green]All standards, profiles, and verifiers passed schema validation![/bold green]")
 
 
+def _is_interactive_tty() -> bool:
+    """Returns True if standard input is attached to an interactive terminal."""
+    try:
+        return sys.stdin.isatty()
+    except Exception:
+        return False
+
+
 @app.command()
 def approve(
     path: str = typer.Argument(".", help="Path to project root."),
 ) -> None:
     """Approve test commands (custom or default) for project execution."""
+    if not _is_interactive_tty():
+        console.print(
+            "[bold red]Error:[/bold red] `forgecore approve` requires an interactive terminal (TTY).\n"
+            "Non-interactive input and piped stdin are refused to prevent automated agent self-approval."
+        )
+        raise typer.Exit(code=1)
+
     root_path = Path(path).resolve()
     loader = ConfigLoader(root_path)
     config = loader.load() if loader.exists() else ProjectConfig()
@@ -259,6 +274,20 @@ def approve(
         else:
             commands_to_approve = {"test": "pytest -q"}
 
+    console.print(f"[bold cyan]Project:[/bold cyan] {root_path}")
+    console.print("[bold cyan]Commands to approve:[/bold cyan]")
+    for k, v in commands_to_approve.items():
+        console.print(f"  [cyan]{k}[/cyan]: {v}")
+    console.print(
+        "[dim yellow]Notice: Approval covers this command set, not repository contents. "
+        "Allowlisted test tools execute repository code by design.[/dim yellow]"
+    )
+
+    confirmed = typer.confirm("Do you approve executing these commands on your machine?", default=False)
+    if not confirmed:
+        console.print("[yellow]Approval cancelled by user.[/yellow]")
+        raise typer.Exit(code=1)
+
     try:
         cmd_hash = trust_mgr.approve(root_path, commands_to_approve)
         console.print(f"[bold green]Successfully approved test command(s) for:[/bold green] {root_path}")
@@ -267,7 +296,7 @@ def approve(
             console.print(f"  [cyan]{k}[/cyan]: {v}")
     except CommandTrustError as e:
         console.print(f"[bold red]Cannot approve commands:[/bold red] {e}")
-        sys.exit(1)
+        raise typer.Exit(code=1)
 
 
 @app.command(name="revoke-approval")
