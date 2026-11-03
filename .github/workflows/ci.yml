@@ -36,3 +36,15 @@ jobs:
 
       - name: Run Pytest Test Suite
         run: uv run pytest
+
+  semgrep-test:
+    name: Semgrep Rule Verifier Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep Rule Tests
+        run: semgrep --test standards/verifiers/semgrep

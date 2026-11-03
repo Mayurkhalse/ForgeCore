@@ -3,11 +3,21 @@ from __future__ import annotations
 import re
 from typing import Any
 
-FENCE_TAG_PATTERN = re.compile(r"<\s*(/)?\s*untrusted_project_data\s*>", re.IGNORECASE)
+FENCE_TAG_PATTERN = re.compile(
+    r"<\s*(/)?\s*untrusted[_\s]*project[_\s]*data\s*>",
+    re.IGNORECASE,
+)
+FENCE_WRAPPED_PATTERN = re.compile(
+    r"^<\s*untrusted[_\s]*project[_\s]*data\s*>(.*)<\s*/\s*untrusted[_\s]*project[_\s]*data\s*>$",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def neutralize_fence_tags(text: str) -> str:
-    """Neutralizes raw fence tag occurrences within untrusted strings to prevent breakouts."""
+    """Neutralizes raw fence tag occurrences within untrusted strings to prevent breakouts.
+
+    Matches case-insensitively and tolerates arbitrary internal whitespace or casing variants.
+    """
 
     def _replace(match: re.Match[str]) -> str:
         slash = match.group(1) or ""
@@ -24,8 +34,10 @@ def fence_untrusted(text: Any) -> str:
     if text is None:
         return ""
     val = str(text) if not isinstance(text, str) else text
-    if val.startswith("<untrusted_project_data>") and val.endswith("</untrusted_project_data>"):
-        val = val[len("<untrusted_project_data>") : -len("</untrusted_project_data>")]
+    stripped = val.strip()
+    match_wrap = FENCE_WRAPPED_PATTERN.match(stripped)
+    if match_wrap:
+        val = match_wrap.group(1)
     neutralized = neutralize_fence_tags(val)
     return f"<untrusted_project_data>{neutralized}</untrusted_project_data>"
 
