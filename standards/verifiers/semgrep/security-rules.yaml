@@ -7,6 +7,9 @@ rules:
           - pattern: $DB.execute("...".format(...), ...)
           - pattern: $DB.execute("..." % $VAR, ...)
       - pattern-not: $DB.execute("..." + "...", ...)
+      - metavariable-regex:
+          metavariable: $DB
+          regex: '(?i).*(cursor|conn|connection|db|session|engine).*'
     message: "SQL query constructed via string concatenation or f-string formatting. Use parameterized query bindings."
     languages: [python]
     severity: ERROR
