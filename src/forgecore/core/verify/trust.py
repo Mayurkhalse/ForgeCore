@@ -56,19 +56,35 @@ class UntrustedCommandError(CommandTrustError):
     """Raised when custom project commands have not been approved by the user."""
 
 
-def _is_inside_root(target: Path, root: Path) -> bool:
-    """Checks whether target path is inside or identical to root directory."""
+def _is_disallowed_project_executable(target: Path, root: Path) -> bool:
+    """Checks whether target executable is located in an untrusted project directory.
+
+    Binaries inside standard environment directories (.venv/Scripts, .venv/bin,
+    and node_modules/.bin) are allowed, while bare executables in the project root
+    (e.g. hijack pytest.bat, pytest.exe, pytest.cmd) or arbitrary repo subdirectories are rejected.
+    """
     try:
         resolved_target = target.resolve()
         resolved_root = root.resolve()
-        if resolved_target.is_relative_to(resolved_root):
-            return True
-        if sys.platform == "win32":
-            t_str = str(resolved_target).lower()
-            r_str = str(resolved_root).lower()
-            if t_str == r_str or t_str.startswith(r_str + "\\") or t_str.startswith(r_str + "/"):
-                return True
-        return False
+        if not resolved_target.is_relative_to(resolved_root):
+            if sys.platform == "win32":
+                t_str = str(resolved_target).lower()
+                r_str = str(resolved_root).lower()
+                if not (t_str == r_str or t_str.startswith(r_str + "\\") or t_str.startswith(r_str + "/")):
+                    return False
+            else:
+                return False
+
+        # Target is inside project root: check if it resides in an allowed environment directory
+        rel = resolved_target.relative_to(resolved_root)
+        rel_parts = [p.lower() for p in rel.parts]
+        if len(rel_parts) >= 2:
+            if rel_parts[0] == ".venv" and rel_parts[1] in {"scripts", "bin"}:
+                return False
+            if rel_parts[0] == "node_modules" and rel_parts[1] == ".bin":
+                return False
+
+        return True
     except Exception:
         return False
 
@@ -79,7 +95,7 @@ def parse_and_validate_command(
 ) -> list[str]:
     """Parses a command string into an argv list using shlex, rejecting shell
 
-    metacharacters and executables outside the allowlist or inside the project root.
+    metacharacters and executables outside the allowlist or untrusted in the project root.
 
     Allowed executables:
       - ruff
@@ -152,10 +168,10 @@ def parse_and_validate_command(
                     if project_root is not None
                     else Path.cwd().resolve()
                 )
-                if _is_inside_root(resolved_path, check_root):
+                if _is_disallowed_project_executable(resolved_path, check_root):
                     raise DisallowedExecutableError(
-                        f"Resolved executable '{resolved}' is located inside project root '{check_root}'. "
-                        f"Executing repository-local binaries as trusted tools is forbidden."
+                        f"Resolved executable '{resolved}' is located in an untrusted project directory ('{check_root}'). "
+                        f"Executing bare repository-local binaries as trusted tools is forbidden."
                     )
                 resolved_base = resolved_path.name.lower()
                 for ext in (".exe", ".cmd", ".bat"):
@@ -185,10 +201,10 @@ def parse_and_validate_command(
                 if project_root is not None
                 else Path.cwd().resolve()
             )
-            if _is_inside_root(resolved_path, check_root):
+            if _is_disallowed_project_executable(resolved_path, check_root):
                 raise DisallowedExecutableError(
-                    f"Resolved executable '{resolved}' is located inside project root '{check_root}'. "
-                    f"Executing repository-local binaries as trusted tools is forbidden."
+                    f"Resolved executable '{resolved}' is located in an untrusted project directory ('{check_root}'). "
+                    f"Executing bare repository-local binaries as trusted tools is forbidden."
                 )
             resolved_base = resolved_path.name.lower()
             for ext in (".exe", ".cmd", ".bat"):

@@ -81,38 +81,56 @@ def test_reject_relative_and_path_based_executables() -> None:
             parse_and_validate_command(cmd)
 
 
-def test_reject_project_root_executables_windows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Allowlisted executables resolved to inside the project root (e.g.
+def test_allow_venv_and_node_modules_binaries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Binaries inside .venv/Scripts, .venv/bin, or node_modules/.bin are allowed."""
+    import os
+    import sys
 
-    pytest.bat or pytest.exe) are rejected on Windows to prevent local executable hijacking.
-    """
-    # 1. Test with pytest.bat placed in project root
-    bat_file = tmp_path / "pytest.bat"
-    bat_file.write_text("@echo off\necho evil\n", encoding="utf-8")
+    # 1. Project with .venv containing pytest.exe (or pytest on POSIX)
+    venv_bin = tmp_path / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")
+    venv_bin.mkdir(parents=True)
+    venv_pytest = venv_bin / ("pytest.exe" if sys.platform == "win32" else "pytest")
+    venv_pytest.write_bytes(b"MZfakeexecutable")
 
-    # Rejection via explicit project_root
-    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
+    # Put .venv/Scripts at the front of PATH
+    monkeypatch.setenv("PATH", f"{venv_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    parsed = parse_and_validate_command("pytest -q", project_root=tmp_path)
+    assert parsed == ["pytest", "-q"]
+
+    # 2. Project with node_modules/.bin containing eslint
+    nm_bin = tmp_path / "node_modules" / ".bin"
+    nm_bin.mkdir(parents=True)
+    nm_eslint = nm_bin / ("eslint.cmd" if sys.platform == "win32" else "eslint")
+    nm_eslint.write_text("@echo off\n", encoding="utf-8")
+
+    monkeypatch.setenv("PATH", f"{nm_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    parsed_eslint = parse_and_validate_command("eslint src/", project_root=tmp_path)
+    assert parsed_eslint == ["eslint", "src/"]
+
+
+def test_reject_project_root_hijack_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A bare hijack pytest.bat, pytest.exe, or pytest.cmd placed directly in project root is rejected."""
+    # Hijack pytest.bat in project root
+    hijack_bat = tmp_path / "pytest.bat"
+    hijack_bat.write_text("@echo off\necho evil\n", encoding="utf-8")
+
+    with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
         parse_and_validate_command("pytest -q", project_root=tmp_path)
 
-    # Rejection via cwd resolution
+    # Rejection via cwd resolution when running inside project root
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
+    with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
         parse_and_validate_command("pytest -q")
 
-    # 2. Test with pytest.exe placed in project root
-    bat_file.unlink()
-    exe_file = tmp_path / "pytest.exe"
-    exe_file.write_bytes(b"MZfakeexecutable")
+    # Hijack pytest.exe in project root
+    hijack_bat.unlink()
+    hijack_exe = tmp_path / "pytest.exe"
+    hijack_exe.write_bytes(b"MZfakeexecutable")
 
-    # Rejection via explicit project_root
-    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
+    with pytest.raises(DisallowedExecutableError, match="untrusted project directory"):
         parse_and_validate_command("pytest -q", project_root=tmp_path)
 
-    # Rejection via cwd resolution
-    with pytest.raises(DisallowedExecutableError, match="located inside project root"):
-        parse_and_validate_command("pytest -q")
-
-    # Approval manager must also refuse approval if binary is in project root
     trust_mgr = CommandTrustManager(config_dir=tmp_path / "user_config")
     with pytest.raises(CommandTrustError):
         trust_mgr.approve(tmp_path, {"test": "pytest -q"})
