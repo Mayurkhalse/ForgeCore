@@ -1,4 +1,3 @@
-# ruff: noqa: F821
 # ok: fastapi-no-db-in-routes
 @router.post("/users")
 async def create(body: UserCreate, svc: UserService = Depends(get_user_service)):

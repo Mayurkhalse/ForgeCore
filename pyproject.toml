@@ -22,6 +22,7 @@ forgecore = "forgecore.cli:app"
 [tool.ruff]
 target-version = "py311"
 line-length = 120
+extend-exclude = ["standards/verifiers/semgrep/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]

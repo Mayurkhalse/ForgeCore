@@ -1,4 +1,3 @@
-# ruff: noqa: F821
 # ok: sec-sql-string-concat
 cursor.execute("SELECT * FROM users WHERE email = :email", {"email": email})
 
