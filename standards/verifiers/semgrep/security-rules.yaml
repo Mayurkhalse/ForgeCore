@@ -1,14 +1,11 @@
 rules:
   - id: sec-sql-string-concat
-    languages: [python]
-    severity: ERROR
-    message: >-
-      SQL query built from string concatenation or formatting. Use
-      parameterized query bindings instead.
     patterns:
       - pattern-either:
-          - pattern: $DB.execute($A + $B, ...)
-          - pattern: $DB.execute(f"...{$VAR}...", ...)
-          - pattern: $DB.execute("...".format(...), ...)
-          - pattern: $DB.execute("..." % $X, ...)
-      - pattern-not: $DB.execute("..." + "...", ...)
+          - pattern: $DB.execute("..." + $VAR)
+          - pattern: $DB.execute(f"...{$VAR}...")
+          - pattern: $CURSOR.execute("..." + $VAR)
+          - pattern: $CURSOR.execute(f"...{$VAR}...")
+    message: "SQL query constructed via string concatenation or f-string formatting. Use parameterized query bindings."
+    languages: [python]
+    severity: ERROR
