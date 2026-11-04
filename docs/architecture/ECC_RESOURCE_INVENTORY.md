@@ -148,3 +148,4 @@ ECC is licensed under the **MIT License** by Affaan Mustafa. Because Sarthi bund
 | - Rejected (Scripts, Shims, Memory State):               206 artifacts (48%)            |
 +-----------------------------------------------------------------------------------------+
 ```
+

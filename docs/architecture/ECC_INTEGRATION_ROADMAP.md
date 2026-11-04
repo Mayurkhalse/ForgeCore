@@ -212,3 +212,4 @@ flowchart TD
 | **M7** | Verification & Security Hardening | `core/verify/`, `pathguard.py` | Planned | Phase 1 |
 | **M8** | Antigravity IDE Optimization | `adapters/antigravity/` | Planned | Phase 2 |
 | **M9** | Multi-Client Expansion | `adapters/claude_code/`, `cursor/` | Planned | Phase 2 |
+

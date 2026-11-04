@@ -172,3 +172,4 @@ The following architectural questions are cataloged for resolution prior to Phas
    - *Question:* Should AgentShield be bundled as a compiled Node standalone executable, or should its static checks be re-implemented in native Python to avoid requiring Node.js in pure-Python environments?
 4. **User-Customized ECC Skills:**
    - *Question:* Should developers be allowed to override bundled ECC skills by placing modified markdown files in `.sarthi/skills/` within their project workspace?
+
