@@ -1,9 +1,11 @@
 # ECC Integration Architecture Design
 
 > **Document:** `docs/architecture/ECC_INTEGRATION_DESIGN.md`  
-> **Status:** Approved Architectural Specification  
+> **Status:** Approved Architectural Specification (Reconciled)  
 > **Target Project:** Sarthi (evolving from ForgeCore)  
-> **Baseline Snapshot:** Everything Claude Code (ECC) v2.2.3 (Commit `b38be6a`)  
+> **Baseline Snapshot:** Everything Claude Code (ECC) v2.2.3  
+> **Authoritative Commit SHA:** `c05b2d6614f62f6db0047669aa4eefb223d478f9` (abbreviated `c05b2d6`)  
+> **Release Tag Object SHA:** `93f9f6154d164ccb9f4dc38858a2bc2d5dcab222`  
 > **Author:** Principal Software Architect & Senior Python Systems Engineer  
 
 ---
@@ -14,7 +16,7 @@ The core mission of **Sarthi** is to provide AI coding agents with a determinist
 
 In ForgeCore v0.1.0, engineering guidance was restricted to an initial, manually authored library of 85 YAML rules across 11 architectural layers. While effective for basic syntactic and structural verification, this handcrafted library created a severe limitation: **the breadth of engineering domain knowledge available to the AI agent was bounded by our internal authoring capacity.**
 
-To resolve this limitation without sacrificing deterministic verification, Sarthi integrates **Everything Claude Code (ECC)** as its foundational engineering knowledge base. ECC represents the industry's most comprehensive open-source collection of production-ready agent skills, domain rules, specialized sub-agents, and procedural workflows.
+To resolve this limitation without sacrificing deterministic verification, Sarthi integrates **Everything Claude Code (ECC)** as its foundational engineering knowledge base. ECC represents the industry's most comprehensive open-source collection of production-ready agent skills, domain rules, specialized sub-agents, prompt commands, and procedural workflows.
 
 ### The Central Architectural Mandate
 Sarthi does **not** simply dump hundreds of prompt files into the AI agent's context window. Sarthi treats ECC resources as an indexed, typed, offline-bundled knowledge catalog governed by:
@@ -22,6 +24,7 @@ Sarthi does **not** simply dump hundreds of prompt files into the AI agent's con
 2. **Strict Provider Isolation:** A clean provider abstraction decouples knowledge suppliers (ECC, Native Standards, Custom Extensions) from the core MCP server, security sandboxing, and verification engine.
 3. **Budget-Capped Context Delivery:** Resources are dynamically discovered, filtered by stack and task, ranked by relevance, and capped within a 3,000-token envelope to prevent prompt drift and context saturation.
 4. **Zero-Trust Fencing:** All project-derived inputs and bundled text are strictly sanitized and fence-neutralized before reaching the host agent.
+5. **Zero Execution Authorization for Scripts:** Supporting scripts bundled as skill references are treated purely as passive documentation assets; Sarthi never executes unverified scripts.
 
 ---
 
@@ -48,7 +51,7 @@ flowchart TD
         
         subgraph Providers["Concrete Providers"]
             NativeProv["Sarthi Native Provider<br/>(85 Core Standards, 16 Contract Rules)"]
-            ECCProv["ECC Bundled Provider (v2.2.3)<br/>(Skills, Rules, Agent Prompts, Workflows)"]
+            ECCProv["ECC Bundled Provider (v2.2.3 @ c05b2d6)<br/>(Skills, Rules, Commands, Agent Prompts, Workflows)"]
             CustomProv["Third-Party / Workspace Provider<br/>(Future Extension)"]
         end
     end
@@ -107,6 +110,7 @@ classDiagram
         RULE
         SKILL
         AGENT
+        COMMAND
         WORKFLOW
         CONTEXT
         HOOK
@@ -118,11 +122,12 @@ classDiagram
 - **`RULE`:** Directives, constraints, and invariants (e.g. `fastapi-no-db-in-routes`, `univ-no-hardcoded-secrets`). May carry machine verifier references.
 - **`SKILL`:** Procedural instructions, domain patterns, and actionable recipes that teach an agent *how* to execute a complex task (e.g. `fastapi-tdd-flow`, `react-performance-optimization`).
 - **`AGENT`:** Role personas, planning prompts, and sub-agent task definitions (e.g. `security-auditor`, `database-architect`, `planner`).
+- **`COMMAND`:** Prompt slash command templates and instruction macros (e.g. `/review`, `/tdd`, `/security-audit`).
 - **`WORKFLOW`:** Multi-phase execution lifecycles with gated phases (e.g. `feature-implementation`, `bug-investigation`).
 - **`CONTEXT`:** Architectural references, stack summaries, and project background context.
 - **`HOOK`:** Event-driven lifecycle interceptors (deferred from execution in Milestone 1; cataloged as metadata).
 - **`MCP_CONFIG`:** Declarations of external tool services and server shims.
-- **`SUPPORTING`:** Auxiliary templates, test fixtures, and scripts.
+- **`SUPPORTING`:** Auxiliary templates, test fixtures, and static reference scripts.
 
 ### 3.2 Strong Metadata Schema
 Every resource is indexed with explicit provenance, licensing, and applicability metadata:
@@ -136,6 +141,7 @@ class ResourceType(str, Enum):
     RULE = "rule"
     SKILL = "skill"
     AGENT = "agent"
+    COMMAND = "command"
     WORKFLOW = "workflow"
     CONTEXT = "context"
     HOOK = "hook"
@@ -164,8 +170,11 @@ class EngineeringResource(BaseModel):
     
     # Provenance and Versioning
     source_path: str = Field(..., description="Path relative to bundle root")
-    source_version: str = Field(..., description="Version of origin upstream (e.g. '2.2.3')")
-    source_commit: str = Field(..., description="Git commit SHA of origin snapshot")
+    source_version: str = Field(default="2.2.3", description="Version of origin upstream")
+    source_commit: str = Field(
+        default="c05b2d6614f62f6db0047669aa4eefb223d478f9",
+        description="Git commit SHA of origin snapshot"
+    )
     license: str = Field(default="MIT", description="Applicable license")
     
     # Selection and Target Matching
@@ -236,7 +245,7 @@ class KnowledgeProvider(Protocol):
 2. **`ECCBundledProvider` (`src/forgecore/core/providers/ecc.py`):**
    - Reads the local bundled catalog located at `resources/ecc/`.
    - Governed by `resources/ecc/manifest.json`.
-   - Parses markdown frontmatter for ECC skills, agent prompts, and workflows.
+   - Parses markdown frontmatter for ECC skills, agent prompts, commands, and workflows.
    - Assigned `TrustLevel.BUNDLED_ECC`.
 3. **`WorkspaceProvider` (Planned for Milestone 5):**
    - Discovers project-specific rules from `.forgecore/rules/` or `.sarthi/rules/`.
@@ -248,7 +257,7 @@ class KnowledgeProvider(Protocol):
 
 To satisfy **Decision 1 (Version-Pinned Baseline)** and guarantee reliable offline operation, ECC resources are bundled directly into the distribution package.
 
-### 5.1 Proposed Directory Structure
+### 5.1 Bundled Directory Structure
 ```
 resources/
 |-- native/
@@ -256,14 +265,16 @@ resources/
 |   |-- standards/                # 85 YAML rules across 11 layers
 |   `-- workflows/                # feature.md, bugfix.md, refactor.md, new-project.md
 `-- ecc/
-    |-- manifest.json             # Pinned catalog metadata, commit SHA, resource index
+    |-- manifest.json             # Pinned catalog metadata, commit c05b2d6, resource index
     |-- LICENSE                   # Upstream MIT License (Affaan Mustafa)
     |-- NOTICE                    # Attribution and modification history
     |-- rules/                    # Selected coding standards and domain rules
     |-- skills/                   # Curated procedural engineering skills
+    |-- commands/                 # Prompt slash commands (pi/core commands)
     |-- agents/                   # Agent persona prompts and planning guides
     |-- workflows/                # Multi-stage task processes
-    `-- contexts/                 # Stack and architectural reference briefs
+    |-- contexts/                 # Stack and architectural reference briefs
+    `-- scripts/                  # Read-only passive reference assets (ZERO execution authorization)
 ```
 
 ### 5.2 The Bundle Manifest (`resources/ecc/manifest.json`)
@@ -275,17 +286,21 @@ The bundle manifest is an immutable record anchoring the ECC snapshot:
   "upstream": {
     "repository": "https://github.com/affaan-m/ECC",
     "release_tag": "v2.2.3",
-    "commit_sha": "b38be6a",
+    "release_tag_sha": "93f9f6154d164ccb9f4dc38858a2bc2d5dcab222",
+    "commit_sha": "c05b2d6614f62f6db0047669aa4eefb223d478f9",
+    "abbreviated_commit": "c05b2d6",
     "snapshot_date": "2026-10-01",
     "license": "MIT",
     "author": "Affaan Mustafa"
   },
   "curation": {
-    "total_resources": 158,
-    "skills_count": 112,
-    "agents_count": 24,
+    "curated_profile": "pi/core",
+    "skills_count": 123,
+    "commands_count": 24,
     "rules_count": 14,
-    "workflows_count": 8
+    "agents_count": 24,
+    "workflows_count": 8,
+    "contexts_count": 12
   },
   "resources": [
     {
@@ -309,47 +324,58 @@ The bundle manifest is an immutable record anchoring the ECC snapshot:
 
 ## 6. Coexistence, Precedence & Conflict Resolution
 
-A critical challenge of the hybrid architecture is preventing contradictions between broad ECC natural-language guidelines and Sarthi's deterministic rules.
+A critical challenge of the hybrid architecture is preventing contradictions between broad ECC natural-language guidelines and Sarthi's deterministic rules, while preventing project configurations from weakening core security invariants.
 
-### 6.1 The Strict Precedence Hierarchy
+### 6.1 The Reconciled 6-Tier Precedence Hierarchy
 
 ```
 +-----------------------------------------------------------------------------------------+
-|                         SARTHI STRICT PRECEDENCE HIERARCHY                              |
+|                         SARTHI RECONCILED PRECEDENCE HIERARCHY                          |
 +-----------------------------------------------------------------------------------------+
-| Tier 1: Core Security & Sandbox Policy (Inviolable)                                     |
-|         - PathGuard jail checks, credential denylist (`.env`, `id_rsa`)                 |
-|         - Command allowlist, shell metacharacter blocking, interactive TTY approvals    |
-|         - Cannot be overridden by any rule, skill, prompt, or config override           |
+| Tier 1: Mandatory Security & Sandboxing Invariants (Inviolable by Any Configuration)   |
+|         - PathGuard jail checks (strict containment to workspace root)                  |
+|         - Credential & secret path denylist (`.env`, `id_rsa`, `.git/config`)           |
+|         - Shell metacharacter blocking & command allowlist                              |
+|         - Interactive TTY confirmation for unapproved commands                          |
+|         - XML fence sanitization (`fence_untrusted`) on all untrusted inputs            |
+|         * INVIOLABLE: Cannot be relaxed or disabled by project.yaml or prompts          |
 +-----------------------------------------------------------------------------------------+
-| Tier 2: Deterministic Machine Verifier Failures (Hard Gate)                             |
-|         - Semgrep SQL injection AST patterns (`sec-sql-string-concat`)                  |
-|         - SecretsRunner regex & entropy hits (`UNI-SEC-001`)                            |
-|         - Ruff syntax & undefined name errors (`RUFF-E9`, `RUFF-F821`)                  |
-|         - Project test suite execution failures (`UNI-TEST-001`)                        |
+| Tier 2: Deterministic Machine Verification Outcomes (Hard Gate)                         |
+|         - AST Verifiers: Semgrep SQL injection (`sec-sql-string-concat`)               |
+|         - SecretsRunner regex & Shannon entropy hits (`UNI-SEC-001`)                    |
+|         - Ruff syntax and undefined symbol errors (`RUFF-E9`, `RUFF-F821`)              |
+|         - Project test suite execution failures (`pytest`, approved test runners)       |
+|         * HARD GATE: Linter and test failures halt pipelines regardless of advice       |
 +-----------------------------------------------------------------------------------------+
-| Tier 3: Core Governance Contract (Inviolable Standard)                                  |
-|         - 16 Core Contract rules (`standards/contract.md`)                              |
-|         - Separation of concerns, parameterization, no swallowed exceptions            |
+| Tier 3: Mandatory Sarthi Core Contract Requirements (Core Governance)                   |
+|         - 16 Core Contract requirements (`standards/contract.md`)                       |
+|         - SQL parameterization, no swallowed exceptions, separation of concerns         |
+|         * MANDATORY: Non-negotiable engineering invariants across all projects          |
 +-----------------------------------------------------------------------------------------+
-| Tier 4: Explicit Project Configuration Overrides                                        |
-|         - User-configured overrides in `.forgecore/project.yaml`                        |
-|         - Explicit layer additions/removals, rule severity adjustments                  |
+| Tier 4: Project-Specific Requirements & Customizable Preferences                        |
+|         - Project configuration in `.forgecore/project.yaml` (`.sarthi/project.yaml`)   |
+|         - Selection of optional architectural layers (`fastapi`, `react`, etc.)         |
+|         - User-approved custom test commands and execution arguments                    |
+|         - Non-mandatory severity adjustments (e.g. style rule from error to warning)    |
+|         * BOUNDED: Project config can customize preferences but CANNOT weaken Tiers 1-3 |
 +-----------------------------------------------------------------------------------------+
 | Tier 5: Sarthi Native Standards Library                                                 |
-|         - 85 curated architectural standards (`standards/*`)                            |
+|         - 85 curated declarative architectural standards across 11 layers               |
+|         - Declarative machine-verifiable standards (`standards/*`)                      |
 +-----------------------------------------------------------------------------------------+
-| Tier 6: Bundled ECC Skills & Procedural Guidance                                        |
-|         - ECC skills, workflows, agent prompts, architectural patterns                  |
-|         - Active only when conforming to higher tiers                                    |
+| Tier 6: Bundled ECC Engineering Guidance                                                |
+|         - ECC skills, workflows, prompt commands, agent personas, and contexts          |
+|         - Purely advisory, procedural, and contextual                                   |
+|         * Active only when fully conforming to all higher tiers                         |
 +-----------------------------------------------------------------------------------------+
 ```
 
 ### 6.2 Conflict Resolution Mechanics
-When a candidate resource from ECC overlaps with a Sarthi native rule:
-1. **Rule Supersession (`supersedes`):** If an ECC rule explicitly conflicts with a native rule, the native rule takes precedence unless the native rule is marked as superseded in configuration.
-2. **Deterministic Precedence:** If an ECC skill recommends a pattern (e.g. quick mock query in an endpoint) that triggers a deterministic AST verifier (e.g. `FAPI-ARCH-001: no direct DB access in route handlers`), the verifier failure halts the workflow. Natural language advice **never** overrides a static analysis check.
-3. **Additive Complementarity:** In practice, 90% of ECC skills are *procedural* (explaining how to structure TDD, design React component trees, or vectorize ML pipelines), whereas Sarthi standards are *declarative gates* (forbidding SQL concatenation, unhandled rejections, or hardcoded secrets). They operate in harmony: **ECC teaches the agent how to build; Sarthi verifies that the agent built safely.**
+When an ECC resource overlaps with a native standard or verification outcome:
+1. **Safety Boundary Dominance (Tier 1 & 2):** If an ECC skill recommends a convenience pattern (e.g. string concatenation in a raw SQL query or storing keys in code) that triggers Semgrep (`sec-sql-string-concat`) or SecretsRunner (`UNI-SEC-001`), the verification failure is definitive. Natural-language advice **never** overrides a static analysis check.
+2. **Contract Dominance (Tier 3):** If an ECC skill advises a pattern that violates the 16-point Core Contract (e.g., blanket `except: pass`), the Core Contract requirement takes absolute precedence.
+3. **Project Preference Scope (Tier 4):** Project configuration can select active optional layers or configure approved test runners, but any configuration setting that attempts to bypass PathGuard or allow unapproved commands is rejected by `PathGuard` and `CommandTrustManager`.
+4. **Additive Complementarity (Tier 5 & 6):** ECC skills are primarily *procedural* (explaining how to structure TDD, design React component trees, or optimize queries), whereas Sarthi standards are *declarative gates*. They operate in harmony: **ECC teaches the agent how to build; Sarthi verifies that the agent built safely.**
 
 ---
 
@@ -387,7 +413,7 @@ sequenceDiagram
     MCP->>Engine: Select applicable resources(layers, task, max_rules=15)
     Engine->>Registry: Fetch Native Rules + ECC Skills + ECC Agent Guides
     Registry-->>Engine: 3 Native Rules, 2 ECC Skills, 1 Security Checklist
-    Engine->>Engine: Apply Precedence & Conflict Rules
+    Engine->>Engine: Apply Precedence & Conflict Rules (Tiers 1-6)
     Engine->>Engine: BudgetManager.enforce_budget(cap=3000 tokens)
     Engine-->>MCP: Budget-Capped Knowledge Payload
     MCP-->>IDE: Structured Rules, Good/Bad Examples, and ECC Procedural Guidance
@@ -413,11 +439,15 @@ sequenceDiagram
 ## 8. Security & Trust Architecture
 
 ### 8.1 Sandbox Integrity & Boundary Defense
-Integrating third-party knowledge bases increases the risk of indirect prompt injection or unintended command execution. Sarthi enforces three strict boundaries:
+Integrating third-party knowledge bases increases the risk of indirect prompt injection or unintended command execution. Sarthi enforces four strict boundaries:
 
 1. **PathGuard Isolation:** ECC resources are bundled as read-only static files within the package directory. PathGuard prevents directory traversal from escaping the resource root or accessing user credentials.
 2. **Zero-Trust Fence Neutralization:** When ECC skill contents or project metadata are assembled into MCP JSON responses, all text is processed by `fence_untrusted()`. Any nested XML tags matching `<\s*(/)?\s*untrusted[_\s]*project[_\s]*data\s*>` are transformed to `[untrusted_project_data]`.
-3. **Execution Prohibition for Bundled Scripts:** ECC contains auxiliary shell scripts and JavaScript tools. **Sarthi strictly forbids executing bundled ECC scripts.** Sarthi consumes only declarative Markdown, YAML, and JSON. If a workflow requires tool execution, it must use ForgeCore's verified, allowlisted binaries (`ruff`, `pytest`, `eslint`, `semgrep`).
+3. **Execution Policy for Bundled Scripts:**
+   - **Zero Runtime Execution Authorization:** Sarthi runtime **never** executes bundled scripts autonomously.
+   - **Read-Only Static Reference Assets:** Skill-supporting scripts (Type A) are bundled solely as passive text documentation and reference examples for the developer or host agent.
+   - **Exclusion of Executable Shims:** Standalone execution shims, installer scripts, and untrusted binaries (Types B & C) are completely excluded from the bundle.
+4. **Allowlisted Verification Binaries Only:** All verification inside Sarthi must execute strictly allowlisted, user-approved binaries (`ruff`, `pytest`, `eslint`, `semgrep`).
 
 ### 8.2 Memory and AgentShield Governance
 - **ECC Memory:** ECC's memory files (`.claude/memory/`) are treated strictly as **untrusted project context**. They are never ingested as executable instructions or security exemptions.
@@ -433,4 +463,3 @@ The ECC integration preserves 100% backward compatibility with the existing Forg
 3. **Preservation of All 85 Rules:** The existing standards library in `standards/` remains completely untouched.
 4. **Existing Approvals Intact:** `~/.forgecore/approvals.json` is preserved without invalidation.
 5. **Clean Test Pass:** All 67 existing unit and integration tests continue to pass without modification.
-
