@@ -1,9 +1,11 @@
 # ECC Integration Roadmap: Staged Implementation Plan
 
 > **Document:** `docs/architecture/ECC_INTEGRATION_ROADMAP.md`  
-> **Status:** Implementation Baseline  
+> **Status:** Reconciled Implementation Baseline  
 > **Target Project:** Sarthi (evolving from ForgeCore)  
-> **Upstream Baseline:** ECC v2.2.3 (Commit `b38be6a`)  
+> **Upstream Baseline:** ECC v2.2.3  
+> **Authoritative Commit SHA:** `c05b2d6614f62f6db0047669aa4eefb223d478f9` (abbreviated `c05b2d6`)  
+> **Release Tag Object SHA:** `93f9f6154d164ccb9f4dc38858a2bc2d5dcab222`  
 > **Author:** Principal Software Architect & Senior Python Systems Engineer  
 
 ---
@@ -28,7 +30,8 @@ flowchart TD
 ### Core Execution Rules
 1. **Never combine milestones:** Each milestone must be executed, tested, and committed independently.
 2. **Zero Breaking Changes:** Existing CLI commands (`init`, `verify`, `standards`), MCP tools, and 85 standards must remain passing after every milestone.
-3. **No Unapproved Execution:** Do not introduce dynamic script execution or untrusted hooks.
+3. **No Unapproved Execution:** Do not introduce dynamic script execution or untrusted hooks. Supporting scripts are bundled strictly as read-only passive reference assets.
+4. **Safety Boundaries Inviolable:** Invariants in Tier 1 (PathGuard, command trust) cannot be relaxed by any configuration or resource.
 
 ---
 
@@ -37,40 +40,44 @@ flowchart TD
 ---
 
 ### Milestone 1: ECC Snapshot Acquisition, Licensing & Manifest
-- **Objective:** Curate the official ECC v2.2.3 snapshot (`b38be6a`), establish the static bundled directory structure under `resources/ecc/`, preserve the MIT license, and generate an immutable `manifest.json`.
+- **Objective:** Curate the official ECC v2.2.3 snapshot anchored to verified release commit `c05b2d6614f62f6db0047669aa4eefb223d478f9` (tag object `93f9f6154d164ccb9f4dc38858a2bc2d5dcab222`), establish the static bundled directory structure under `resources/ecc/`, preserve the MIT license, and generate an immutable `manifest.json`.
 - **Files / Modules Impacted:**
   - `resources/ecc/manifest.json` (New)
   - `resources/ecc/LICENSE` (New)
   - `resources/ecc/NOTICE` (New)
   - `resources/ecc/rules/` (New)
   - `resources/ecc/skills/` (New)
-  - `resources/ecc/agents/` (New)
+  - `resources/ecc/commands/` (New: pi/core prompt commands)
+  - `resources/ecc/agents/` (New: agent persona templates)
   - `resources/ecc/workflows/` (New)
   - `resources/ecc/contexts/` (New)
+  - `resources/ecc/scripts/` (New: read-only reference assets; zero execution authorization)
   - `NOTICE` (Updated in repo root)
   - `pyproject.toml` (Updated to package `resources/` data)
 - **Dependencies:** None.
 - **Tests Required:**
-  - `test_ecc_manifest_schema`: Asserts `manifest.json` conforms to schema with valid SHA `b38be6a`.
+  - `test_ecc_manifest_schema`: Asserts `manifest.json` conforms to schema with valid SHA `c05b2d6614f62f6db0047669aa4eefb223d478f9`.
   - `test_ecc_bundle_integrity`: Asserts all paths listed in `manifest.json` physically exist on disk.
   - `test_ecc_license_preservation`: Asserts `LICENSE` and `NOTICE` are present and valid.
-- **Risks:** Bloating the wheel package size with excessive unneeded scripts. (Mitigated by bundling only curated 158 artifacts).
+  - `test_no_executable_permissions`: Asserts bundled scripts are not marked executable and cannot be invoked as tools.
+- **Risks:** Bloating the wheel package size with unneeded scripts or binary shims. (Mitigated by bundling only curated text resources and excluding Type B/C executable shims).
 - **Acceptance Criteria:**
   - Directory `resources/ecc/` is populated with curated static files.
-  - No shell scripts (`bin/`) or unsandboxed memory files are included.
+  - Upstream commit verified against `c05b2d6614f62f6db0047669aa4eefb223d478f9`.
+  - No executable shell shims (`bin/`) or unsandboxed memory files are included.
   - Package builds cleanly with `uv build` including resources.
 
 ---
 
 ### Milestone 2: Typed Resource Model & Provider Abstraction
-- **Objective:** Define the strongly typed Pydantic models for `EngineeringResource`, `ResourceType`, `CompatibilityStatus`, `TrustLevel`, and the `KnowledgeProvider` Protocol.
+- **Objective:** Define the strongly typed Pydantic models for `EngineeringResource`, `ResourceType` (including `COMMAND`), `CompatibilityStatus`, `TrustLevel`, and the `KnowledgeProvider` Protocol.
 - **Files / Modules Impacted:**
   - `src/forgecore/core/resources/models.py` (New)
   - `src/forgecore/core/resources/base.py` (New: Provider Protocol)
   - `src/forgecore/core/resources/__init__.py` (New)
 - **Dependencies:** Milestone 1.
 - **Tests Required:**
-  - `test_resource_model_serialization`: Serializes and deserializes all 8 resource types.
+  - `test_resource_model_serialization`: Serializes and deserializes all resource types (including `COMMAND` and `SUPPORTING`).
   - `test_resource_provenance_validation`: Asserts valid version and commit metadata.
   - `test_provider_protocol_runtime_check`: Confirms protocol conformance.
 - **Risks:** Over-complicating metadata fields. (Mitigated by including only fields required for selection, provenance, and trust).
@@ -98,39 +105,43 @@ flowchart TD
 ---
 
 ### Milestone 4: ECC Bundled Provider Implementation
-- **Objective:** Implement `ECCBundledProvider` conforming to `KnowledgeProvider`, reading the bundled catalog from `resources/ecc/` and parsing Markdown frontmatter for skills, rules, agents, and workflows.
+- **Objective:** Implement `ECCBundledProvider` conforming to `KnowledgeProvider`, reading the bundled catalog from `resources/ecc/` and parsing Markdown frontmatter for skills, rules, commands, agents, and workflows.
 - **Files / Modules Impacted:**
   - `src/forgecore/core/providers/ecc.py` (New)
   - `src/forgecore/core/providers/registry.py` (New: ProviderRegistry)
 - **Dependencies:** Milestone 1, Milestone 2.
 - **Tests Required:**
   - `test_ecc_provider_loads_bundled_skills`: Confirms all curated skills are indexed with metadata.
+  - `test_ecc_provider_loads_commands`: Confirms prompt commands are indexed as `COMMAND` type.
   - `test_ecc_provider_agent_personas`: Confirms agent personas are loaded with role descriptors.
   - `test_ecc_provider_offline_operation`: Simulates zero network access; asserts 100% catalog availability.
   - `test_ecc_provider_pathguard_containment`: Asserts provider cannot be tricked into reading files outside `resources/ecc/`.
+  - `test_ecc_scripts_never_executed`: Verifies passive scripts cannot be executed via any provider method.
 - **Risks:** Inconsistent frontmatter schemas in upstream Markdown files.
 - **Acceptance Criteria:**
-  - `ECCBundledProvider` discovers, indexes, and serves all 158 bundled ECC resources offline.
+  - `ECCBundledProvider` discovers, indexes, and serves all bundled ECC resources offline.
   - Read access is strictly contained within `resources/ecc/`.
 
 ---
 
 ### Milestone 5: Unified Resource Selector, Precedence & Budgeting
-- **Objective:** Implement the `UnifiedResourceSelector` that combines resources across providers, resolves conflicts via the strict precedence hierarchy (Security > Native > ECC), and enforces the 3,000-token budget.
+- **Objective:** Implement the `UnifiedResourceSelector` that combines resources across providers, resolves conflicts via the reconciled 6-tier precedence hierarchy (Security Invariants > AST Verifier > Core Contract > Project Config > Native Standards > ECC Guidance), and enforces the 3,000-token budget.
 - **Files / Modules Impacted:**
   - `src/forgecore/core/resources/selector.py` (New)
   - `src/forgecore/core/resources/precedence.py` (New)
   - `src/forgecore/core/budget.py` (Updated to handle typed resources)
 - **Dependencies:** Milestone 3, Milestone 4.
 - **Tests Required:**
+  - `test_precedence_invariants_cannot_be_overridden`: Asserts project configuration cannot weaken Tier 1 security boundaries.
   - `test_precedence_native_over_ecc`: Confirms native deterministic rules override conflicting ECC guidelines.
+  - `test_precedence_contract_over_ecc`: Confirms 16-point Core Contract supersedes ECC guidance.
   - `test_budget_manager_enforces_token_cap`: Confirms combined payload never exceeds 3,000 estimated tokens.
   - `test_stack_filtering_accuracy`: Asserts FastAPI tasks receive only FastAPI/Python/Universal resources.
   - `test_superseded_rule_exclusion`: Confirms superseded resources are cleanly filtered.
 - **Risks:** Token estimation errors causing context saturation. (Mitigated by defensive truncations and token estimation audits).
 - **Acceptance Criteria:**
   - `UnifiedResourceSelector.select_resources(stack, task, max_items)` produces a ranked, deduplicated, budget-capped list.
-  - Native verification rules retain unconditional priority.
+  - Native verification rules and security invariants retain unconditional priority.
 
 ---
 
@@ -164,6 +175,7 @@ flowchart TD
   - `test_verifier_unaffected_by_ecc_skills`: Asserts that adding 150+ skills does not alter verifier exit codes.
   - `test_pathguard_blocks_arbitrary_resource_paths`: Traversal test against resource endpoints.
   - `test_interactive_tty_approval_uncompromised`: Confirms `forgecore approve` still requires interactive TTY.
+  - `test_no_arbitrary_command_execution`: Verifies unapproved test runners or scripts cannot be executed without interactive approval.
 - **Risks:** Unintended permission widening.
 - **Acceptance Criteria:**
   - Zero changes to allowlisted executables.
@@ -203,7 +215,7 @@ flowchart TD
 
 | Milestone | Title | Impacted Modules | Status | Target Phase |
 |---|---|---|---|---|
-| **M1** | ECC Snapshot, Licensing & Manifest | `resources/ecc/`, `pyproject.toml` | **Ready for Execution** | Phase 1 |
+| **M1** | ECC Snapshot, Licensing & Manifest | `resources/ecc/`, `pyproject.toml` | **Pending Approval** | Phase 1 |
 | **M2** | Typed Resource Model & Protocol | `core/resources/` | Planned | Phase 1 |
 | **M3** | Sarthi Native Provider | `core/providers/native.py` | Planned | Phase 1 |
 | **M4** | ECC Bundled Provider | `core/providers/ecc.py` | Planned | Phase 1 |
@@ -212,4 +224,3 @@ flowchart TD
 | **M7** | Verification & Security Hardening | `core/verify/`, `pathguard.py` | Planned | Phase 1 |
 | **M8** | Antigravity IDE Optimization | `adapters/antigravity/` | Planned | Phase 2 |
 | **M9** | Multi-Client Expansion | `adapters/claude_code/`, `cursor/` | Planned | Phase 2 |
-
