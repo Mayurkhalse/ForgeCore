@@ -1,0 +1,10 @@
+Everything Claude Code (ECC) Snapshot
+Version: 2.2.3
+Commit: c05b2d6614f62f6db0047669aa4eefb223d478f9
+Release Tag Object: 93f9f6154d164ccb9f4dc38858a2bc2d5dcab222
+Author: Affaan Mustafa (https://github.com/affaan-m/ECC)
+License: MIT License (see LICENSE)
+
+This directory contains a curated offline snapshot of ECC resources
+bundled for Sarthi / ForgeCore. All core Sarthi verification logic,
+PathGuard sandboxing, and native standards are independently authored.

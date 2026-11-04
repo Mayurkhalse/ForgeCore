@@ -3,8 +3,11 @@ Copyright (c) 2026 ForgeCore Contributors
 
 This product includes software and designs developed by the ForgeCore project.
 
-Credits and Baseline Research:
-Everything Claude Code (ECC) is an MIT-licensed project used as a research baseline
-for how harness configuration (rules, skills, hooks, agents, MCP) can be structured.
+Credits and Bundled Intelligence:
+This product includes software developed as part of Everything Claude Code (ECC)
+by Affaan Mustafa (https://github.com/affaan-m/ECC).
+Licensed under the MIT License.
+Bundled Snapshot: v2.2.3 (Commit c05b2d6614f62f6db0047669aa4eefb223d478f9)
+
 ForgeCore's standards, rule schema, selection logic, MCP implementation, and verify loop
 are independently authored.
