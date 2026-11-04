@@ -260,3 +260,4 @@ Before beginning the physical acquisition of ECC resources (Milestone 1), the fo
 ---
 
 *Report Ratification: November 5, 2026 — Sarthi Architecture Steering Group*
+
