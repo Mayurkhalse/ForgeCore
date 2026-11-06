@@ -25,6 +25,15 @@ class MCPToolHandlers:
         self._all_rules: list[Any] | None = None
         self._profiles: dict[str, Any] | None = None
         self._selector: RuleSelector | None = None
+        self._unified_selector: Any = None
+
+    @property
+    def unified_selector(self) -> Any:
+        if self._unified_selector is None:
+            from forgecore.core.resources.selector import UnifiedResourceSelector
+
+            self._unified_selector = UnifiedResourceSelector()
+        return self._unified_selector
 
     @property
     def rule_loader(self) -> RuleLoader:
@@ -101,6 +110,8 @@ class MCPToolHandlers:
             if not raw_proj_name:
                 raw_proj_name = root_path.name
 
+            summary = self.unified_selector.registry.get_inventory_summary()
+
             return {
                 "status": "initialized",
                 "project_name": fence_untrusted(raw_proj_name),
@@ -115,6 +126,8 @@ class MCPToolHandlers:
                 "active_layers": active_layers,
                 "evidence": fence_nested_untrusted(profile.evidence),
                 "core_contract_summary": contract_summary,
+                "knowledge_providers": list(summary.get("counts_by_provider", {}).keys()),
+                "total_available_resources": summary.get("total_resources", 0),
                 "next_step": "Call forgecore.get_workflow(task_type) or forgecore.get_standards(task, layers) before writing code.",
             }
         except PathGuardError as pge:
@@ -216,12 +229,50 @@ class MCPToolHandlers:
                     }
                 rules_data.append(entry)
 
+            # Query Unified Multi-Provider Knowledge (ECC + Native + Workspace)
+            from forgecore.core.resources.models import ResourceType
+
+            unified_res, unified_trace, conflict_report = self.unified_selector.select_resources(
+                active_layers=active_layers,
+                task=task,
+                task_type=task_type,
+                config=config,
+                max_tokens=3000,
+                max_resources=max_rules,
+            )
+
+            skills_data = []
+            provenance_data = []
+            for res in unified_res:
+                provenance_data.append({
+                    "id": res.id,
+                    "provider": res.provider_id,
+                    "source_path": res.source_path,
+                    "commit": res.source_commit,
+                })
+                if res.type == ResourceType.SKILL:
+                    guidance = self.unified_selector.registry.get_content(res)
+                    skills_data.append({
+                        "id": res.id,
+                        "name": res.name,
+                        "description": res.description,
+                        "source_path": res.source_path,
+                        "guidance": guidance[:800] if guidance else "",
+                    })
+
             return {
                 "task": task,
                 "active_layers": active_layers,
                 "total_returned": len(rules_data),
                 "truncated": truncated,
                 "rules": rules_data,
+                "skills": skills_data,
+                "conflict_report": {
+                    "total_conflicts": conflict_report.total_conflicts,
+                    "resolved": [c.model_dump(mode="json") for c in conflict_report.resolved],
+                    "rejected_attempts": conflict_report.rejected_attempts,
+                },
+                "provenance": provenance_data,
                 "hint": hint or "Follow these standards carefully while implementing.",
             }
         except Exception as e:
@@ -258,10 +309,29 @@ class MCPToolHandlers:
 
     def get_rule(self, rule_id: str) -> dict[str, Any]:
         """
-        Fetches full details, rationale, and examples for a single rule ID.
+        Fetches full details, rationale, and examples for a single rule ID or ECC resource.
         """
         rule = self.selector.get_rule(rule_id)
         if not rule:
+            # Check unified registry for ECC resources or workspace custom guidance
+            res = self.unified_selector.registry.get_resource(rule_id)
+            if res:
+                content = self.unified_selector.registry.get_content(res)
+                return {
+                    "id": res.id,
+                    "provider": res.provider_id,
+                    "type": res.type.value,
+                    "name": res.name,
+                    "description": res.description,
+                    "source_path": res.source_path,
+                    "source_commit": res.source_commit,
+                    "source_version": res.source_version,
+                    "license": res.license,
+                    "applicable_stacks": res.applicable_stacks,
+                    "applicable_tasks": res.applicable_tasks,
+                    "compatibility": res.compatibility.value,
+                    "content": content,
+                }
             clean_id = neutralize_fence_tags(rule_id)
             return {"error": {"code": "RULE_NOT_FOUND", "message": f"Rule '{clean_id}' does not exist", "hint": "Check rule ID spelling."}}
 
@@ -272,6 +342,7 @@ class MCPToolHandlers:
         root: str,
         scope: str = "changed",
         checks: list[str] | None = None,
+        trust_mgr: Any = None,
     ) -> dict[str, Any]:
         """
         Executes deterministic verifiers (ruff, semgrep, tests, secrets) and returns structured report.
@@ -280,7 +351,7 @@ class MCPToolHandlers:
             from forgecore.core.verify.verifier import Verifier
 
             root_path = Path(root).resolve()
-            verifier = Verifier(root_path)
+            verifier = Verifier(root_path, trust_mgr=trust_mgr)
             report = verifier.verify(scope=scope, checks=checks)
             data = report.model_dump(mode="json")
             # Fence untrusted project-sourced fields in findings
