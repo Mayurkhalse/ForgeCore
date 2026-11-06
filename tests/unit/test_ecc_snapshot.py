@@ -1,5 +1,8 @@
 """Unit tests for offline ECC v2.2.3 snapshot integrity and manifest."""
 
+from __future__ import annotations
+
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -63,3 +66,94 @@ def test_ecc_license_and_notice_preservation():
 
     notice_text = notice_file.read_text(encoding="utf-8")
     assert EXPECTED_COMMIT in notice_text
+
+
+def _setup_mock_snapshot(base_dir: Path, commit_sha: str = EXPECTED_COMMIT) -> tuple[Path, Path]:
+    """Helper to create a fully valid minimal mock ECC snapshot for negative testing."""
+    ecc_dir = base_dir / "resources" / "ecc"
+    ecc_dir.mkdir(parents=True, exist_ok=True)
+
+    lic_content = "MIT License Affaan Mustafa"
+    not_content = f"Notice with {commit_sha}"
+    inv_content = "{}"
+    sample_content = "# Sample resource content"
+
+    (ecc_dir / "LICENSE").write_text(lic_content, encoding="utf-8")
+    (ecc_dir / "NOTICE").write_text(not_content, encoding="utf-8")
+    (ecc_dir / "inventory.json").write_text(inv_content, encoding="utf-8")
+
+    sample_file = ecc_dir / "sample.md"
+    sample_file.write_text(sample_content, encoding="utf-8")
+
+    manifest = {
+        "schema_version": "1.0.0",
+        "upstream": {
+            "repository": "https://github.com/affaan-m/ECC.git",
+            "release_tag": EXPECTED_TAG,
+            "release_tag_sha": EXPECTED_TAG_OBJECT,
+            "commit_sha": commit_sha,
+        },
+        "files": {
+            "sample.md": {"sha256": hashlib.sha256(sample_content.encode()).hexdigest()},
+            "LICENSE": {"sha256": hashlib.sha256(lic_content.encode()).hexdigest()},
+            "NOTICE": {"sha256": hashlib.sha256(not_content.encode()).hexdigest()},
+            "inventory.json": {"sha256": hashlib.sha256(inv_content.encode()).hexdigest()},
+        },
+    }
+    (ecc_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return base_dir, sample_file
+
+
+def test_detects_corrupted_file(tmp_path: Path):
+    """Negative Test: Verifier must detect modified file contents via SHA-256 mismatch."""
+    repo_root, sample_file = _setup_mock_snapshot(tmp_path)
+    sample_file.write_text("# Corrupted contents altering hash", encoding="utf-8")
+
+    results = verify_snapshot(repo_root)
+    assert results["5_checksums_match_identically"] is False
+
+
+def test_detects_missing_file(tmp_path: Path):
+    """Negative Test: Verifier must detect physically deleted files recorded in manifest."""
+    repo_root, sample_file = _setup_mock_snapshot(tmp_path)
+    sample_file.unlink()
+
+    results = verify_snapshot(repo_root)
+    assert results["3_all_recorded_files_exist"] is False
+
+
+def test_detects_unexpected_file(tmp_path: Path):
+    """Negative Test: Verifier must detect unrecorded extraneous files in snapshot dir."""
+    repo_root, _ = _setup_mock_snapshot(tmp_path)
+    rogue_file = repo_root / "resources" / "ecc" / "unrecorded_payload.sh"
+    rogue_file.write_text("echo rogue", encoding="utf-8")
+
+    results = verify_snapshot(repo_root)
+    assert results["4_no_unexpected_files"] is False
+
+
+def test_detects_invalid_commit_sha(tmp_path: Path):
+    """Negative Test: Verifier must fail if pinned upstream commit SHA is tampered."""
+    tampered_commit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    repo_root, _ = _setup_mock_snapshot(tmp_path, commit_sha=tampered_commit)
+
+    results = verify_snapshot(repo_root)
+    assert results["1_pinned_commit_verified"] is False
+
+
+def test_detects_credential_leak(tmp_path: Path):
+    """Negative Test: Verifier must detect credential/env files inside snapshot."""
+    repo_root, _ = _setup_mock_snapshot(tmp_path)
+    ecc_dir = repo_root / "resources" / "ecc"
+    env_file = ecc_dir / ".env"
+    env_file.write_text("SECRET=leaked", encoding="utf-8")
+
+    manifest_path = ecc_dir / "manifest.json"
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+    manifest["files"][".env"] = {"sha256": hashlib.sha256(b"SECRET=leaked").hexdigest()}
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f)
+
+    results = verify_snapshot(repo_root)
+    assert results["7_no_credentials_copied"] is False
