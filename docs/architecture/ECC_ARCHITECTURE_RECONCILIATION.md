@@ -2,7 +2,7 @@
 
 > **Document:** `docs/architecture/ECC_ARCHITECTURE_RECONCILIATION.md`  
 > **Status:** Ratified Reconciliation Report  
-> **Target Project:** Sarthi (evolving from ForgeCore)  
+> **Target Project:** Sarthi (evolving from Sarthi)  
 > **Upstream Release Baseline:** Everything Claude Code (ECC) v2.2.3  
 > **Authoritative Commit SHA:** `c05b2d6614f62f6db0047669aa4eefb223d478f9` (abbreviated `c05b2d6`)  
 > **Release Tag Object SHA:** `93f9f6154d164ccb9f4dc38858a2bc2d5dcab222`  
@@ -109,7 +109,7 @@ Tag Object:     93f9f6154d164ccb9f4dc38858a2bc2d5dcab222
 All four architecture documents have been reconciled, updated, and independently committed to reflect verified facts and hardened security boundaries.
 
 ### 4.1 Reconciled Resource Taxonomy
-The typed resource model (`src/forgecore/core/resources/models.py`) now explicitly defines `COMMAND` as an independent first-class type alongside `AGENT` and `SKILL`:
+The typed resource model (`src/sarthi/core/resources/models.py`) now explicitly defines `COMMAND` as an independent first-class type alongside `AGENT` and `SKILL`:
 
 ```python
 class ResourceType(str, Enum):
@@ -152,7 +152,7 @@ To prevent project-level configurations from creating security backdoors or bypa
 |         * MANDATORY: Non-negotiable engineering invariants across all projects          |
 +-----------------------------------------------------------------------------------------+
 | Tier 4: Project-Specific Requirements & Customizable Preferences                        |
-|         - Project configuration in `.forgecore/project.yaml` (`.sarthi/project.yaml`)   |
+|         - Project configuration in `.sarthi/project.yaml` (`.sarthi/project.yaml`)   |
 |         - Selection of optional architectural layers (`fastapi`, `react`, etc.)         |
 |         - User-approved custom test commands and execution arguments                    |
 |         - Non-mandatory severity adjustments (e.g. style rule from error to warning)    |
@@ -255,9 +255,9 @@ Before beginning the physical acquisition of ECC resources (Milestone 1), the fo
    - No Python source or dependencies will be modified during the documentation reconciliation phase.
 3. **Clean Baseline Verification:**
    - All 67 unit and integration tests must pass cleanly.
-   - Schema linter (`forgecore lint-standards`) and code linter (`ruff check .`) must pass with zero errors.
+   - Schema linter (`sarthi lint-standards`) and code linter (`ruff check .`) must pass with zero errors.
 
 ---
 
-*Report Ratification: November 5, 2026 — Sarthi Architecture Steering Group*
+*Report Ratification: November 5, 2026 â€” Sarthi Architecture Steering Group*
 

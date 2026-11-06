@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from forgecore.core.resources.compiler import ContextCompiler
-from forgecore.mcp.tools import MCPToolHandlers
+from sarthi.core.resources.compiler import ContextCompiler
+from sarthi.mcp.tools import MCPToolHandlers
 
 
 def test_context_compiler_structured_output():
@@ -85,7 +85,7 @@ def test_mcp_resource_read_ecc():
     """Verifies reading an ECC resource directly through MCPResources."""
     import json
 
-    from forgecore.mcp.resources import MCPResources
+    from sarthi.mcp.resources import MCPResources
 
     res_mgr = MCPResources()
     raw = res_mgr.get_ecc_resource("ecc.skill.fastapi-patterns")

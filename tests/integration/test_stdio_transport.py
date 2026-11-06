@@ -14,12 +14,12 @@ from mcp.client.stdio import stdio_client
 @pytest.mark.parametrize(
     "cmd_args",
     [
-        ["-u", "-m", "forgecore.mcp.server"],
-        ["-u", "-m", "forgecore.cli", "serve"],
+        ["-u", "-m", "sarthi.mcp.server"],
+        ["-u", "-m", "sarthi.cli", "serve"],
     ],
 )
 async def test_mcp_real_stdio_transport(cmd_args: list[str]) -> None:
-    """Launch the ForgeCore MCP server as a subprocess over real stdio.
+    """Launch the Sarthi MCP server as a subprocess over real stdio.
 
     Verifies the real stdio transport handshake, tool listing,
     and initialize_project execution with a 25-second timeout.
@@ -37,7 +37,7 @@ async def test_mcp_real_stdio_transport(cmd_args: list[str]) -> None:
             async with ClientSession(read, write) as session:
                 # 1. Initialize handshake
                 init_result = await session.initialize()
-                assert init_result.server_info.name == "forgecore"
+                assert init_result.server_info.name == "sarthi"
 
                 # 2. List tools
                 tools_result = await session.list_tools()
@@ -64,7 +64,7 @@ async def test_mcp_real_stdio_transport(cmd_args: list[str]) -> None:
 
 
 def test_mcp_stdout_strictly_jsonrpc_only() -> None:
-    """Launch the MCP server with FORGECORE_DEBUG enabled over real stdio.
+    """Launch the MCP server with SARTHI_DEBUG enabled over real stdio.
 
     Asserts that:
     1. Every line emitted on stdout is valid JSON with "jsonrpc": "2.0".
@@ -76,12 +76,12 @@ def test_mcp_stdout_strictly_jsonrpc_only() -> None:
     env = {
         **os.environ,
         "PYTHONUNBUFFERED": "1",
-        "FORGECORE_DEBUG": "1",
+        "SARTHI_DEBUG": "1",
     }
     fixture_dir = Path("tests/fixtures/fastapi_app").resolve()
 
     proc = subprocess.Popen(
-        [sys.executable, "-u", "-m", "forgecore.mcp.server"],
+        [sys.executable, "-u", "-m", "sarthi.mcp.server"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -171,5 +171,5 @@ def test_mcp_stdout_strictly_jsonrpc_only() -> None:
             data = json.loads(trimmed)
             assert data.get("jsonrpc") == "2.0", f"Non-JSONRPC line on stdout: {trimmed}"
 
-    assert "FORGECORE_DEBUG enabled" in stderr_output
+    assert "SARTHI_DEBUG enabled" in stderr_output
     assert "logging routed to stderr" in stderr_output

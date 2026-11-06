@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from forgecore.core.standards_linter import StandardsLinter
+from sarthi.core.standards_linter import StandardsLinter
 
 
 def generate_rules_table(standards_dir: Path | str | None = None) -> str:

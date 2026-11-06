@@ -1,7 +1,7 @@
 # Everything Claude Code (ECC) Runtime Integration Architecture
 
 > **Document:** `docs/architecture/ECC_RUNTIME_INTEGRATION.md`  
-> **Target Project:** Sarthi (evolving from ForgeCore)  
+> **Target Project:** Sarthi (evolving from Sarthi)  
 > **Status:** Implemented & Verified Baseline  
 > **Upstream Release Baseline:** ECC v2.2.3  
 > **Authoritative Commit SHA:** `c05b2d6614f62f6db0047669aa4eefb223d478f9` (abbreviated `c05b2d6`)  
@@ -22,29 +22,29 @@ flowchart TD
         Inventory["inventory.json<br/>(962 entries: 391 include, 248 defer, 323 reject)"]
     end
 
-    subgraph ProviderLayer["Provider Architecture (src/forgecore/core/providers/)"]
+    subgraph ProviderLayer["Provider Architecture (src/sarthi/core/providers/)"]
         Registry["ProviderRegistry"]
         NativeProv["SarthiNativeProvider<br/>(85 YAML Standards, 16 Contract Rules)"]
         ECCProv["ECCBundledProvider<br/>(589 Indexed Resources)"]
-        WorkspaceProv["WorkspaceProvider<br/>(.forgecore/rules/)"]
+        WorkspaceProv["WorkspaceProvider<br/>(.sarthi/rules/)"]
     end
 
-    subgraph IntelligenceEngine["Selection & Synthesis Engine (src/forgecore/core/resources/)"]
+    subgraph IntelligenceEngine["Selection & Synthesis Engine (src/sarthi/core/resources/)"]
         Selector["UnifiedResourceSelector"]
         ConflictResolver["ConflictResolver<br/>(6-Tier Precedence Hierarchy)"]
         BudgetMgr["BudgetManager<br/>(3000 Token Envelope)"]
         Compiler["ContextCompiler"]
     end
 
-    subgraph RuntimeInterface["MCP Server & Tool Handlers (src/forgecore/mcp/)"]
+    subgraph RuntimeInterface["MCP Server & Tool Handlers (src/sarthi/mcp/)"]
         MCPServer["MCP Server (stdio JSON-RPC)"]
-        GetStandards["forgecore.get_standards"]
-        Initialize["forgecore.initialize_project"]
-        GetRule["forgecore.get_rule"]
-        VerifyProject["forgecore.verify_project"]
+        GetStandards["sarthi.get_standards"]
+        Initialize["sarthi.initialize_project"]
+        GetRule["sarthi.get_rule"]
+        VerifyProject["sarthi.verify_project"]
     end
 
-    subgraph VerificationEngine["Deterministic Enforcement (src/forgecore/core/verify/)"]
+    subgraph VerificationEngine["Deterministic Enforcement (src/sarthi/core/verify/)"]
         Verifier["Verifier Orchestrator"]
         Secrets["SecretsRunner (UNI-SEC-001)"]
         Ruff["RuffRunner (AST syntax/undefined)"]
@@ -150,7 +150,7 @@ Conflict resolution strictly implements the ratified ADR-007 hierarchy:
 | **Tier 1** | **Mandatory Security Invariants** | Inviolable; cannot be overridden or disabled by project config, rules, or prompts. | `PathGuard`, credential denylist, command allowlist, XML fence sanitization. |
 | **Tier 2** | **Machine Verification Outcomes** | Hard Gate; static analysis and test failures halt pipelines regardless of natural-language advice. | AST Verifiers (Semgrep), Secrets scanner (`UNI-SEC-001`), Ruff errors, pytest failures. |
 | **Tier 3** | **Sarthi Core Contract** | Non-negotiable engineering invariants across all projects. | 16-point contract (`standards/contract.md`). |
-| **Tier 4** | **Project Configuration** | Bounded customization; can select layers or customize approved test runners, but cannot weaken Tiers 1–3. | `.forgecore/project.yaml` (`RulesConfig`, `LayersConfig`). |
+| **Tier 4** | **Project Configuration** | Bounded customization; can select layers or customize approved test runners, but cannot weaken Tiers 1â€“3. | `.sarthi/project.yaml` (`RulesConfig`, `LayersConfig`). |
 | **Tier 5** | **Sarthi Native Standards** | Curated declarative architectural rules across 11 layers. | 85 YAML rules in `standards/`. |
 | **Tier 6** | **Bundled ECC Guidance** | Purely advisory, procedural, and contextual knowledge. | 123 skills, 122 rules, 24 commands, 68 agents in `resources/ecc/`. |
 

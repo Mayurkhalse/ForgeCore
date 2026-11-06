@@ -1,4 +1,4 @@
-from forgecore.core.models import (
+from sarthi.core.models import (
     Category,
     ProjectConfig,
     Rule,
@@ -7,7 +7,7 @@ from forgecore.core.models import (
     Severity,
     Tier,
 )
-from forgecore.core.rules import RuleSelector
+from sarthi.core.rules import RuleSelector
 
 
 def test_rule_selector_ranking_and_filtering():
@@ -120,7 +120,7 @@ def test_standards_summary_table_generation():
     import subprocess
     import sys
 
-    from forgecore.core.standards_linter import StandardsLinter
+    from sarthi.core.standards_linter import StandardsLinter
 
     linter = StandardsLinter()
     table = linter.generate_summary_table()

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from forgecore.mcp.tools import MCPToolHandlers
+from sarthi.mcp.tools import MCPToolHandlers
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 

@@ -1,9 +1,9 @@
 """Tests for ECC knowledge normalization, typed models, and schema validation."""
 from __future__ import annotations
 
-from forgecore.core.providers.ecc import ECCBundledProvider
-from forgecore.core.providers.native import SarthiNativeProvider
-from forgecore.core.resources.models import (
+from sarthi.core.providers.ecc import ECCBundledProvider
+from sarthi.core.providers.native import SarthiNativeProvider
+from sarthi.core.resources.models import (
     Classification,
     CompatibilityStatus,
     PrecedenceTier,

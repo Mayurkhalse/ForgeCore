@@ -11,16 +11,16 @@ from pathlib import Path
 
 import pytest
 
-from forgecore.core.budget import BudgetManager
-from forgecore.core.pathguard import PathGuard, PathTraversalError, SecretFileAccessError
-from forgecore.core.security import fence_untrusted
-from forgecore.core.verify.trust import (
+from sarthi.core.budget import BudgetManager
+from sarthi.core.pathguard import PathGuard, PathTraversalError, SecretFileAccessError
+from sarthi.core.security import fence_untrusted
+from sarthi.core.verify.trust import (
     CommandTrustError,
     CommandTrustManager,
     parse_and_validate_command,
 )
-from forgecore.core.verify.verifier import Verifier
-from forgecore.mcp.tools import MCPToolHandlers
+from sarthi.core.verify.verifier import Verifier
+from sarthi.mcp.tools import MCPToolHandlers
 
 from .fixtures import (
     FAILING_TEST_PATCH,
@@ -83,7 +83,7 @@ def test_scenario_2_project_config_tampering(tmp_path: Path):
         parse_and_validate_command(unauthorized_cmd, project_root=fixture_root)
 
     # 3. Unapproved valid command in project.yaml causes Verifier to flag as untrusted
-    proj_yaml = fixture_root / ".forgecore" / "project.yaml"
+    proj_yaml = fixture_root / ".sarthi" / "project.yaml"
     proj_yaml.write_text(
         "version: 1\nproject:\n  name: login-api\nverify:\n  fail_on: high\n  commands:\n    test: 'pytest -v'\n",
         encoding="utf-8",

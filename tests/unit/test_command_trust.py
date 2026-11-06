@@ -6,17 +6,17 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from forgecore.cli import app
-from forgecore.core.models import ProjectConfig, RunContext, VerifyConfig
-from forgecore.core.verify.runners.tests import TestRunner
-from forgecore.core.verify.trust import (
+from sarthi.cli import app
+from sarthi.core.models import ProjectConfig, RunContext, VerifyConfig
+from sarthi.core.verify.runners.tests import TestRunner
+from sarthi.core.verify.trust import (
     CommandTrustError,
     CommandTrustManager,
     DisallowedExecutableError,
     ShellMetacharacterError,
     parse_and_validate_command,
 )
-from forgecore.core.verify.verifier import Verifier
+from sarthi.core.verify.verifier import Verifier
 
 
 def test_parse_allowed_commands() -> None:
@@ -204,7 +204,7 @@ def test_reject_empty_command() -> None:
 
 def test_command_trust_manager_approval_lifecycle(tmp_path: Path) -> None:
     """Approvals are stored in user config dir and can be checked and revoked."""
-    user_config_dir = tmp_path / "user_home" / ".forgecore"
+    user_config_dir = tmp_path / "user_home" / ".sarthi"
     project_root = tmp_path / "my_project"
     project_root.mkdir(parents=True)
 
@@ -232,7 +232,7 @@ def test_command_trust_manager_approval_lifecycle(tmp_path: Path) -> None:
 
 def test_command_trust_manager_invalidates_on_command_change(tmp_path: Path) -> None:
     """Modifying, adding, or removing commands invalidates existing approval."""
-    user_config_dir = tmp_path / "user_home" / ".forgecore"
+    user_config_dir = tmp_path / "user_home" / ".sarthi"
     project_root = tmp_path / "my_project"
     project_root.mkdir(parents=True)
 
@@ -265,7 +265,7 @@ def test_command_trust_manager_refuses_to_approve_disallowed(tmp_path: Path) -> 
 
 def test_test_runner_skips_untrusted_command(tmp_path: Path) -> None:
     """TestRunner marks untrusted custom test command as untrusted."""
-    user_config_dir = tmp_path / ".forgecore"
+    user_config_dir = tmp_path / ".sarthi"
     trust_mgr = CommandTrustManager(config_dir=user_config_dir)
 
     runner = TestRunner(trust_mgr=trust_mgr)
@@ -284,14 +284,14 @@ def test_test_runner_skips_untrusted_command(tmp_path: Path) -> None:
 
 def test_verifier_skips_untrusted_command_with_actionable_hint(tmp_path: Path) -> None:
     """Verifier skips untrusted custom test command with instruction on how to approve."""
-    user_config_dir = tmp_path / "user_home" / ".forgecore"
+    user_config_dir = tmp_path / "user_home" / ".sarthi"
     project_root = tmp_path / "repo"
     project_root.mkdir(parents=True)
 
     # Create dummy project.yaml with custom test command
-    forgecore_dir = project_root / ".forgecore"
-    forgecore_dir.mkdir()
-    (forgecore_dir / "project.yaml").write_text(
+    sarthi_dir = project_root / ".sarthi"
+    sarthi_dir.mkdir()
+    (sarthi_dir / "project.yaml").write_text(
         "version: 1\nverify:\n  commands:\n    test: pytest -q\n",
         encoding="utf-8",
     )
@@ -306,18 +306,18 @@ def test_verifier_skips_untrusted_command_with_actionable_hint(tmp_path: Path) -
 
     test_skip = next(s for s in report.skipped if s.check == "tests")
     assert "untrusted" in test_skip.reason.lower()
-    assert "forgecore approve" in test_skip.reason
+    assert "sarthi approve" in test_skip.reason
 
 
 def test_verifier_runs_custom_command_after_approval(tmp_path: Path) -> None:
     """Verifier executes custom command once approved."""
-    user_config_dir = tmp_path / "user_home" / ".forgecore"
+    user_config_dir = tmp_path / "user_home" / ".sarthi"
     project_root = tmp_path / "repo"
     project_root.mkdir(parents=True)
 
-    forgecore_dir = project_root / ".forgecore"
-    forgecore_dir.mkdir()
-    (forgecore_dir / "project.yaml").write_text(
+    sarthi_dir = project_root / ".sarthi"
+    sarthi_dir.mkdir()
+    (sarthi_dir / "project.yaml").write_text(
         "version: 1\nverify:\n  commands:\n    test: pytest -q\n",
         encoding="utf-8",
     )
@@ -336,7 +336,7 @@ def test_verifier_runs_custom_command_after_approval(tmp_path: Path) -> None:
 
 def test_default_test_suite_requires_approval(tmp_path: Path) -> None:
     """Approval covers ANY execution of project test commands, including default ones."""
-    user_config_dir = tmp_path / "user_home" / ".forgecore"
+    user_config_dir = tmp_path / "user_home" / ".sarthi"
     project_root = tmp_path / "repo"
     project_root.mkdir(parents=True)
 
@@ -364,7 +364,7 @@ def test_default_test_suite_requires_approval(tmp_path: Path) -> None:
 
 
 def test_cli_approve_refuses_when_stdin_not_a_tty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`forgecore approve` must refuse execution with non-zero exit when stdin is not a TTY."""
+    """`sarthi approve` must refuse execution with non-zero exit when stdin is not a TTY."""
     # Under CliRunner, sys.stdin is not a TTY by default
     runner = CliRunner()
     result = runner.invoke(app, ["approve", str(tmp_path)])
@@ -373,8 +373,8 @@ def test_cli_approve_refuses_when_stdin_not_a_tty(tmp_path: Path, monkeypatch: p
 
 
 def test_cli_approve_interactive_confirmation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`forgecore approve` prompts on interactive TTY: rejects on 'n', approves on 'y'."""
-    monkeypatch.setattr("forgecore.cli._is_interactive_tty", lambda: True)
+    """`sarthi approve` prompts on interactive TTY: rejects on 'n', approves on 'y'."""
+    monkeypatch.setattr("sarthi.cli._is_interactive_tty", lambda: True)
 
     # Set user home so approvals write to tmp_path
     fake_home = tmp_path / "user_home"
@@ -392,7 +392,7 @@ def test_cli_approve_interactive_confirmation(tmp_path: Path, monkeypatch: pytes
     assert res_no.exit_code != 0
     assert "Approval cancelled" in res_no.stdout
 
-    trust_mgr = CommandTrustManager(config_dir=fake_home / ".forgecore")
+    trust_mgr = CommandTrustManager(config_dir=fake_home / ".sarthi")
     assert trust_mgr.is_approved(project_root, {"test": "pytest -q"}) is False
 
     # 2. User answers 'y' -> succeeds (exit 0), approved

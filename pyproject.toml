@@ -1,7 +1,7 @@
 [project]
-name = "forgecore"
+name = "sarthi"
 version = "0.1.0"
-description = "Add your description here"
+description = "Sarthi — IDE-Independent Engineering Intelligence & Verification Platform"
 readme = "README.md"
 authors = [
     { name = "Mayurkhalse", email = "163679044+Mayurkhalse@users.noreply.github.com" }
@@ -17,7 +17,8 @@ dependencies = [
 ]
 
 [project.scripts]
-forgecore = "forgecore.cli:app"
+sarthi = "sarthi.cli:app"
+forgecore = "sarthi.cli:app"
 
 [tool.ruff]
 target-version = "py311"

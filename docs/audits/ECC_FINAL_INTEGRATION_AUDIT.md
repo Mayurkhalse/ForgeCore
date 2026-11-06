@@ -1,4 +1,4 @@
-# ForgeCore — Final ECC Integration Audit Report
+# Sarthi â€” Final ECC Integration Audit Report
 **Comprehensive Evidence, Completeness & Runtime Verification**
 
 ---
@@ -8,12 +8,12 @@
 ### 1.1 Formal Disposition Classification
 ```
 ================================================================================
-FINAL CLASSIFICATION: COMPLETE — VERIFIED WITHIN SUPPORTED SCOPE
+FINAL CLASSIFICATION: COMPLETE â€” VERIFIED WITHIN SUPPORTED SCOPE
 ================================================================================
 ```
 
 ### 1.2 Executive Statement & Sign-off
-This audit was performed by the Principal Software Architect, MCP Engineer, CI/CD Engineer, and Quality Assurance Auditor. It provides the definitive, evidence-backed verification of the integration between **Everything Claude Code (ECC) v2.2.3** and **ForgeCore**.
+This audit was performed by the Principal Software Architect, MCP Engineer, CI/CD Engineer, and Quality Assurance Auditor. It provides the definitive, evidence-backed verification of the integration between **Everything Claude Code (ECC) v2.2.3** and **Sarthi**.
 
 Every claim in this report is backed by real execution traces, deterministic regression tests, offline snapshot integrity verification, and protocol-level stdio communication.
 
@@ -21,8 +21,8 @@ Key audit conclusions:
 1. **Upstream Source Completeness ($100.0\%$ Accounting):** All 962 upstream assets from pinned commit `c05b2d6614f62f6db0047669aa4eefb223d478f9` have been evaluated. 391 assets are included in the local snapshot, 248 entries are formally deferred with preserved metadata, and 323 redundant build artifacts are rejected. Zero silent omissions exist.
 2. **Defect Rectification & Inventory Integrity:** The previously reported metric of `392 / 391 = 100%` has been resolved: the 392nd file in `manifest.json` is `inventory.json` (a generated inventory metadata file, not an upstream asset). The traceability matrix generator defect (duplicate `ecc.script.evaluate` caused by substring matching) was resolved to exact path matching, restoring the exact count to 962 items and 0 duplicate IDs.
 3. **Safety & Inviolable Architecture:** The 6-tier precedence hierarchy and security architecture are fully enforced. Tier 1 security boundaries (PathGuard, credential denylist, command allowlist) and Tier 3 Core Contract rules cannot be overridden or diluted by imported Tier 6 ECC guidance. Autonomous background daemons (ADR-005), external SaaS endpoints (ADR-007), and untrusted executable scripts (ADR-009) remain strictly unexecutable.
-4. **Real MCP Protocol Stdio Verification:** A live subprocess test of `python -u -m forgecore.mcp.server` communicating over stdio verified all 12 operational steps: initialize handshake, tool discovery, resource listing, standards compilation, markdown instruction rendering, workflow retrieval, deterministic project verification, and `forgecore://ecc/{id}` resource reads. Standard output is strictly valid JSON-RPC 2.0 with zero log pollution.
-5. **Quality & Regression Assurance:** The full test suite passes with **118 passed tests in 134.74s** (0 failed, 0 skipped, 0 deselected). Ruff linting reports zero violations, ForgeCore standards linting passes schema validation, and all 10 ECC snapshot invariants pass 100% offline.
+4. **Real MCP Protocol Stdio Verification:** A live subprocess test of `python -u -m sarthi.mcp.server` communicating over stdio verified all 12 operational steps: initialize handshake, tool discovery, resource listing, standards compilation, markdown instruction rendering, workflow retrieval, deterministic project verification, and `sarthi://ecc/{id}` resource reads. Standard output is strictly valid JSON-RPC 2.0 with zero log pollution.
+5. **Quality & Regression Assurance:** The full test suite passes with **118 passed tests in 134.74s** (0 failed, 0 skipped, 0 deselected). Ruff linting reports zero violations, Sarthi standards linting passes schema validation, and all 10 ECC snapshot invariants pass 100% offline.
 
 ---
 
@@ -135,7 +135,7 @@ $$\text{Logical Resource Indexing Coverage} = \frac{\text{Logical resources inde
 * **Numerator:** 589 distinct resources returned by `ECCBundledProvider.list_resources()`.
 * **Denominator:** 589 intended logical resources ($639 \text{ included + deferred} - 50 \text{ non-standalone items}$).
 * **Counting Method:** Count of unique `Resource` instances registered in `ECCBundledProvider`.
-* **Source File:** `src/forgecore/core/providers/ecc.py`.
+* **Source File:** `src/sarthi/core/providers/ecc.py`.
 * **Verification Method:** Verified via `test_normalization_all_resource_types_present`.
 * **Limitations:** None; matches provider registration ground truth.
 
@@ -147,17 +147,17 @@ $$\text{Overall Catalog Retrieval Coverage} = \frac{\text{Logical resources succ
 * **Denominator (Active):** 341 active resources ($123 \text{ skills} + 121 \text{ rules} + 24 \text{ commands} + 68 \text{ agents} + 3 \text{ contexts} + 1 \text{ workflow} + 1 \text{ script}$).
 * **Denominator (Total):** 589 total indexed resources (including 248 deferred metadata placeholders).
 * **Counting Method:** Iterative invocation of `ProviderRegistry.get_resource()` across all catalog IDs.
-* **Source File:** `src/forgecore/core/providers/registry.py`.
+* **Source File:** `src/sarthi/core/providers/registry.py`.
 * **Verification Method:** Subprocess audit test and unit test `test_mcp_get_rule_retrieves_ecc_resources`.
 * **Limitations:** The 248 deferred resources intentionally return `content_inline=""` and `priority=0`.
 
 ### 3.6 Adaptation Coverage
-Measures the proportion of non-rule upstream artifacts adapted into supported ForgeCore formats.
+Measures the proportion of non-rule upstream artifacts adapted into supported Sarthi formats.
 $$\text{Adaptation Coverage} = \frac{\text{Resources with verified supported adapters}}{\text{Resources requiring adapters}} \times 100 = \frac{92}{92} \times 100 = \mathbf{100.0\%}$$
 * **Numerator:** 92 adapted resources (24 commands converted to prompt templates + 68 agents converted to persona templates).
 * **Denominator:** 92 upstream resources requiring structural adaptation (commands and agents).
 * **Counting Method:** Filter of `ECCBundledProvider` resources with category `'command'` or `'agent'`.
-* **Source File:** `src/forgecore/core/providers/ecc.py`.
+* **Source File:** `src/sarthi/core/providers/ecc.py`.
 * **Verification Method:** Verified via `test_normalization_ecc_commands_and_agents`.
 * **Limitations:** Adapted resources deliver prompt templates; they do not invoke arbitrary host shell processes.
 
@@ -167,7 +167,7 @@ $$\text{Execution Compatibility Coverage} = \frac{\text{Resources with verified 
 * **Numerator:** 336 executable resources (123 skills delivered via `instructions_markdown` + 121 rules enforced via linter/guidance + 92 commands/agents delivered via MCP prompt templates).
 * **Denominator:** 336 resources designed for runtime execution.
 * **Counting Method:** Sum of active skills, rules, commands, and agents.
-* **Source File:** `src/forgecore/core/resources/compiler.py`, `src/forgecore/mcp/tools.py`.
+* **Source File:** `src/sarthi/core/resources/compiler.py`, `src/sarthi/mcp/tools.py`.
 * **Verification Method:** Verified via `test_context_compiler_structured_output` and real MCP stdio audit.
 * **Limitations:** Excludes 3 passive contexts, 1 JS workflow (reference documentation), 1 passive shell script (documentation-only per ADR-009), and 248 deferred assets.
 
@@ -217,7 +217,7 @@ An exhaustive static audit of all 123 bundled skills was conducted to trace inte
 | `skills/devops/mcp-server-patterns` | `../../docs/capability-surface-selection.md` | No | Reference to upstream ECC documentation outside the bundled snapshot | Documented as external upstream documentation reference |
 
 ### 5.2 Delivery Limitation for Nested Assets
-While the 36 nested markdown files under `skills/angular-developer/references/` are physically preserved in the snapshot on disk, ForgeCore's runtime context compiler (`ContextCompiler`) only extracts and compiles content from primary `SKILL.md` files (up to a 1,200-character guidance cap).
+While the 36 nested markdown files under `skills/angular-developer/references/` are physically preserved in the snapshot on disk, Sarthi's runtime context compiler (`ContextCompiler`) only extracts and compiles content from primary `SKILL.md` files (up to a 1,200-character guidance cap).
 
 **Audit Finding:** Nested reference files are currently preserved on disk for manual inspection, but are **not concatenated** into `instructions_markdown` during MCP tool calls. This is an intentional design boundary to prevent token budget saturation, documented in Section 14.
 
@@ -274,58 +274,58 @@ Exhaustive retrieval sampling was performed across stack boundaries:
 
 ## 8. Real MCP Stdio Protocol Verification
 
-A comprehensive end-to-end verification was conducted by spawning the ForgeCore MCP server as an independent OS subprocess via stdio (`python -u -m forgecore.mcp.server`), communicating strictly via JSON-RPC 2.0 messages over stdin/stdout.
+A comprehensive end-to-end verification was conducted by spawning the Sarthi MCP server as an independent OS subprocess via stdio (`python -u -m sarthi.mcp.server`), communicating strictly via JSON-RPC 2.0 messages over stdin/stdout.
 
 ```
-Client Process (Audit Runner)                  Server Process (forgecore.mcp.server)
-        │                                                     │
-        │─── 1. initialize ──────────────────────────────────►│ (Handshake, server info, Core Contract)
-        │◄─── {"jsonrpc":"2.0", "result": {...}} ─────────────│
-        │                                                     │
-        │─── 2. notifications/initialized ───────────────────►│ (Protocol acknowledgement)
-        │                                                     │
-        │─── 3. tools/list ──────────────────────────────────►│ (6 tools discovered)
-        │◄─── {"tools": [{"name": "initialize_project"}...]} ─│
-        │                                                     │
-        │─── 4. resources/templates/list ────────────────────►│ (URI template: forgecore://ecc/{resource_id})
-        │◄─── {"resourceTemplates": [...]} ───────────────────│
-        │                                                     │
-        │─── 5. tools/call: initialize_project ──────────────►│ (Evaluates stack, returns inventory)
-        │◄─── {"total_rules": 211, "total_skills": 123} ──────│
-        │                                                     │
-        │─── 6. tools/call: get_standards (FastAPI+PostgreSQL)►│ (Selects rules, compiles instructions)
-        │◄─── {"rules": 12, "skills": 3, "conflicts": 0} ─────│
-        │                                                     │
-        │─── 7. tools/call: get_workflow ────────────────────►│ (Retrieves golden review workflow)
-        │◄─── {"workflow": "golden-review", "steps": 4} ──────│
-        │                                                     │
-        │─── 8. tools/call: verify_project ──────────────────►│ (Executes deterministic verifiers)
-        │◄─── {"status": "passed", "checks": 4} ──────────────│
-        │                                                     │
-        │─── 9. resources/read: forgecore://ecc/fastapi ─────►│ (Direct resource URI read)
-        │◄─── {"contents": [{"text": "...markdown..."}]} ─────│
-        │                                                     │
-        │─── 10. resources/read: unknown URI ────────────────►│ (Error handling verification)
-        │◄─── {"contents": [{"text": "{\"error\": ...}"}]} ───│
-        │                                                     │
-        │─── 11. Malformed JSON-RPC Request ─────────────────►│ (Robustness verification)
-        │◄─── {"jsonrpc":"2.0", "error": {"code": -32600}} ───│
-        │                                                     │
-        │─── 12. Stdio Stream Close ─────────────────────────►│ (Process terminates with code 0)
+Client Process (Audit Runner)                  Server Process (sarthi.mcp.server)
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 1. initialize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Handshake, server info, Core Contract)
+        â”‚â—„â”€â”€â”€ {"jsonrpc":"2.0", "result": {...}} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 2. notifications/initialized â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Protocol acknowledgement)
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 3. tools/list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (6 tools discovered)
+        â”‚â—„â”€â”€â”€ {"tools": [{"name": "initialize_project"}...]} â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 4. resources/templates/list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (URI template: sarthi://ecc/{resource_id})
+        â”‚â—„â”€â”€â”€ {"resourceTemplates": [...]} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 5. tools/call: initialize_project â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Evaluates stack, returns inventory)
+        â”‚â—„â”€â”€â”€ {"total_rules": 211, "total_skills": 123} â”€â”€â”€â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 6. tools/call: get_standards (FastAPI+PostgreSQL)â–ºâ”‚ (Selects rules, compiles instructions)
+        â”‚â—„â”€â”€â”€ {"rules": 12, "skills": 3, "conflicts": 0} â”€â”€â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 7. tools/call: get_workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Retrieves golden review workflow)
+        â”‚â—„â”€â”€â”€ {"workflow": "golden-review", "steps": 4} â”€â”€â”€â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 8. tools/call: verify_project â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Executes deterministic verifiers)
+        â”‚â—„â”€â”€â”€ {"status": "passed", "checks": 4} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 9. resources/read: sarthi://ecc/fastapi â”€â”€â”€â”€â”€â–ºâ”‚ (Direct resource URI read)
+        â”‚â—„â”€â”€â”€ {"contents": [{"text": "...markdown..."}]} â”€â”€â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 10. resources/read: unknown URI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Error handling verification)
+        â”‚â—„â”€â”€â”€ {"contents": [{"text": "{\"error\": ...}"}]} â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 11. Malformed JSON-RPC Request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Robustness verification)
+        â”‚â—„â”€â”€â”€ {"jsonrpc":"2.0", "error": {"code": -32600}} â”€â”€â”€â”‚
+        â”‚                                                     â”‚
+        â”‚â”€â”€â”€ 12. Stdio Stream Close â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚ (Process terminates with code 0)
 ```
 
 ### 8.1 12-Step Subprocess Execution Trace
 1. **Initialize Handshake:** Method `initialize` sent with client info `audit-runner/1.0.0`. Server returned protocol version `2024-11-05`, capabilities for tools/resources/prompts, and the complete Core Contract in `instructions`.
 2. **Initialized Notification:** Notification `notifications/initialized` delivered without error.
 3. **Tool Discovery:** Discovered 6 registered MCP tools: `initialize_project`, `get_project_context`, `get_standards`, `get_workflow`, `get_rule`, `verify_project`.
-4. **Resource Template Discovery:** Server returned resource template `forgecore://ecc/{resource_id}` with description for ECC engineering knowledge assets.
+4. **Resource Template Discovery:** Server returned resource template `sarthi://ecc/{resource_id}` with description for ECC engineering knowledge assets.
 5. **Initialize Project Tool Call:** Invoked `initialize_project` on `tests/fixtures/fastapi_app`. Server returned inventory reporting 211 total rules (90 native + 121 ECC) and 123 procedural skills.
 6. **Get Standards Tool Call:** Invoked `get_standards` with task *"Build a production-ready authentication module using FastAPI and PostgreSQL"*. Server selected 12 relevant rules, 3 skills (`fastapi-patterns`, `sql-best-practices`, `backend-architect`), and compiled structured `instructions_markdown`.
 7. **Compiled Instructions Content Inspection:** Verified that `instructions_markdown` contained required section headers: `# Sarthi Engineering Intelligence Instructions`, `## Active Rules`, and `## Procedural Skills Guidance`.
 8. **Get Workflow Tool Call:** Invoked `get_workflow` with workflow ID `golden-review`. Server returned full workflow YAML specification.
 9. **Verify Project Tool Call:** Invoked `verify_project` on clean fixture. Deterministic verifiers executed; returned status `passed`.
-10. **Resource Read via `forgecore://` URI:** Requested `forgecore://ecc/ecc.skill.fastapi-patterns`. Server returned full JSON payload containing 15,635 bytes of markdown instructions.
-11. **Resource Read Nonexistent ID:** Requested `forgecore://ecc/ecc.skill.nonexistent`. Server handled gracefully, returning structured error payload without crashing.
+10. **Resource Read via `sarthi://` URI:** Requested `sarthi://ecc/ecc.skill.fastapi-patterns`. Server returned full JSON payload containing 15,635 bytes of markdown instructions.
+11. **Resource Read Nonexistent ID:** Requested `sarthi://ecc/ecc.skill.nonexistent`. Server handled gracefully, returning structured error payload without crashing.
 12. **Malformed JSON-RPC Robustness:** Sent invalid JSON-RPC payload. Server returned error code `-32600` (Invalid Request) and remained responsive.
 13. **Clean Shutdown:** Closed stdin stream. Server process exited cleanly with return code **0**.
 
@@ -336,7 +336,7 @@ All server responses on stdout conformed strictly to the JSON-RPC 2.0 specificat
 
 ## 9. Security & Inviolable Precedence Audit
 
-ForgeCore's security architecture ensures that third-party knowledge cannot compromise system integrity:
+Sarthi's security architecture ensures that third-party knowledge cannot compromise system integrity:
 
 | Security Domain | Architectural Invariant | Audit Verification Finding | Regression Test |
 | :--- | :--- | :--- | :--- |
@@ -353,15 +353,15 @@ ForgeCore's security architecture ensures that third-party knowledge cannot comp
 When standards conflict, the conflict resolver applies the strict 6-tier hierarchy:
 ```
 Tier 1: Security Invariants (PathGuard, Credential Denylist, Command Allowlist)  [INVIOLABLE]
-   ▲
+   â–²
 Tier 2: Host Operating Environment (OS, Shell, Python runtime constraints)
-   ▲
-Tier 3: Core Contract Rules (ForgeCore Base Engineering Specifications)          [INVIOLABLE]
-   ▲
-Tier 4: Project Configuration (.forgecore/rules/*, User Local Overrides)
-   ▲
+   â–²
+Tier 3: Core Contract Rules (Sarthi Base Engineering Specifications)          [INVIOLABLE]
+   â–²
+Tier 4: Project Configuration (.sarthi/rules/*, User Local Overrides)
+   â–²
 Tier 5: Sarthi Native Standards (Pre-bundled Native Standards Library)
-   ▲
+   â–²
 Tier 6: ECC Imported Guidance (Third-party curated skills and rules)
 ```
 *Audit Confirmation:* Tier 6 ECC rules can never override, loosen, or supersede Tiers 1 through 5.
@@ -390,8 +390,8 @@ All regression tests were executed on the active development environment from th
    - Command: `uv run ruff check .`
    - Output: `All checks passed!`
    - Exit Code: **0**
-2. **ForgeCore Standards Linter:**
-   - Command: `uv run forgecore lint-standards`
+2. **Sarthi Standards Linter:**
+   - Command: `uv run sarthi lint-standards`
    - Output: `All standards, profiles, and verifiers passed schema validation!`
    - Exit Code: **0**
 3. **ECC Snapshot Verifier:**
@@ -406,7 +406,7 @@ All regression tests were executed on the active development environment from th
 ### 11.1 Windows Runtime Audit Findings
 * **Environment:** Windows 11 (x86_64), PowerShell 7 / Windows Terminal, Python 3.13.5.
 * **Subprocess Execution:** Subprocess spawning for real stdio tests executes cleanly without requiring shell wrappers (`shell=False`), avoiding Windows `cmd.exe` quoting pitfalls.
-* **Path Separator Normalization:** Windows backslashes (`\`) are normalized to POSIX forward slashes (`/`) across all `PathGuard` checks, glob matchers, and resource URI schemes (`forgecore://ecc/...`).
+* **Path Separator Normalization:** Windows backslashes (`\`) are normalized to POSIX forward slashes (`/`) across all `PathGuard` checks, glob matchers, and resource URI schemes (`sarthi://ecc/...`).
 * **Socket Hang Prevention:** The Windows-specific 10-minute loopback socket hang previously encountered in test runners was resolved by utilizing an in-process synchronous coroutine dispatcher (`_run_coro_sync`), ensuring instant teardown.
 
 ---
@@ -417,7 +417,7 @@ All regression tests were executed on the active development environment from th
 * **CI Configuration:** `.github/workflows/ci.yml` specifies `ubuntu-latest` against Python 3.11, 3.12, and 3.13.
 * **Headless Stdio Compatibility:** Validated that Linux standard input/output streams handle JSON-RPC messaging without terminal allocation or TTY buffering issues.
 * **Pythonpath Resolution:** Root-level import errors on Linux systems are resolved by `pythonpath = ["src", "."]` configured in `pyproject.toml`.
-* **CI Verification Limitation:** The GitHub CLI (`gh`) is not installed on the local audit machine. Remote GitHub Actions status was verified via git commit history tracking and confirmed PR runs at `https://github.com/Mayurkhalse/ForgeCore/actions`.
+* **CI Verification Limitation:** The GitHub CLI (`gh`) is not installed on the local audit machine. Remote GitHub Actions status was verified via git commit history tracking and confirmed PR runs at `https://github.com/Mayurkhalse/Sarthi/actions`.
 
 ---
 
@@ -426,7 +426,7 @@ All regression tests were executed on the active development environment from th
 ### 13.1 macOS Environment Audit Findings
 * **CI Configuration:** `.github/workflows/ci.yml` specifies `macos-latest` against Python 3.11, 3.12, and 3.13.
 * **Case-Sensitivity & Determinism:** The macOS APFS filesystem (case-insensitive by default) previously caused non-deterministic ordering in Spring Boot rule selection. This was permanently resolved by introducing deterministic `sorted(...)` directory iteration and secondary `r.id` tie-breaking in `UnifiedResourceSelector`.
-* **CI Verification Limitation:** Remote CI runs on macOS runners are tracked via GitHub Actions workflow history at `https://github.com/Mayurkhalse/ForgeCore/actions`.
+* **CI Verification Limitation:** Remote CI runs on macOS runners are tracked via GitHub Actions workflow history at `https://github.com/Mayurkhalse/Sarthi/actions`.
 
 ---
 
@@ -439,7 +439,7 @@ The following capabilities are deliberately non-supported to preserve security a
 | **Autonomous Hooks** | 6 hooks | Deferred under ADR-005. Untrusted event hooks running in background violate determinism and safety. | Code quality enforced via deterministic `verify_project` gates and user-invoked workflows. |
 | **External MCP Endpoints**| 1 config | Deferred under ADR-007. External SaaS network calls violate the offline safety guarantee. | Local MCP stdio tools supported; external tools require explicit user configuration. |
 | **Executable Scripts**| 47 scripts | Maintained as documentation-only under ADR-009. Running arbitrary shell scripts violates the execution model. | Knowledge extracted into declarative rules; shell commands require explicit allowlisting. |
-| **Host JS Workflows** | 1 workflow | Upstream `orch-review.workflow.js` requires an active Node.js Claude Code daemon runtime. | Preserved as reference documentation; native YAML workflows executed via ForgeCore engine. |
+| **Host JS Workflows** | 1 workflow | Upstream `orch-review.workflow.js` requires an active Node.js Claude Code daemon runtime. | Preserved as reference documentation; native YAML workflows executed via Sarthi engine. |
 | **Nested Skill References**| 45 files | Nested references (e.g. `angular-developer/references/*.md`) exist on disk but are not compiled into prompts. | Avoids saturating prompt token budget (>3000 tokens); available on disk for manual developer review. |
 
 ---
@@ -452,7 +452,7 @@ Based on exhaustive verification across all 15 audit dimensions:
 ```
 ================================================================================
 FINAL VERDICT: APPROVED FOR CLOSURE
-Status: COMPLETE — VERIFIED WITHIN SUPPORTED SCOPE
+Status: COMPLETE â€” VERIFIED WITHIN SUPPORTED SCOPE
 Snapshot Commit: c05b2d6614f62f6db0047669aa4eefb223d478f9 (ECC v2.2.3)
 Catalog Resources: 679 (589 ECC + 90 Native Sarthi)
 Regression Tests: 118/118 Passed (Exit Code 0)

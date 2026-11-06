@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from forgecore.core.stack_detector import StackDetector
+from sarthi.core.stack_detector import StackDetector
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 

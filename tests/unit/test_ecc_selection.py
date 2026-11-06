@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from forgecore.core.providers.registry import ProviderRegistry
-from forgecore.core.resources.selector import UnifiedResourceSelector
+from sarthi.core.providers.registry import ProviderRegistry
+from sarthi.core.resources.selector import UnifiedResourceSelector
 
 
 @pytest.fixture
@@ -111,8 +111,8 @@ def test_selection_mixed_stack_project(selector: UnifiedResourceSelector):
 
 
 def test_selection_project_specific_rule_activation(tmp_path: Path):
-    """Verifies that custom rules from .forgecore/rules/ are discovered and selected."""
-    fc_rules = tmp_path / ".forgecore" / "rules"
+    """Verifies that custom rules from .sarthi/rules/ are discovered and selected."""
+    fc_rules = tmp_path / ".sarthi" / "rules"
     fc_rules.mkdir(parents=True)
 
     custom_rule = """id: custom-corp-logging

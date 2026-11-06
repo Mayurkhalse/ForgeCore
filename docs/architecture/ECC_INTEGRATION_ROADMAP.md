@@ -2,7 +2,7 @@
 
 > **Document:** `docs/architecture/ECC_INTEGRATION_ROADMAP.md`  
 > **Status:** Reconciled Implementation Baseline  
-> **Target Project:** Sarthi (evolving from ForgeCore)  
+> **Target Project:** Sarthi (evolving from Sarthi)  
 > **Upstream Baseline:** ECC v2.2.3  
 > **Authoritative Commit SHA:** `c05b2d6614f62f6db0047669aa4eefb223d478f9` (abbreviated `c05b2d6`)  
 > **Release Tag Object SHA:** `93f9f6154d164ccb9f4dc38858a2bc2d5dcab222`  
@@ -72,9 +72,9 @@ flowchart TD
 ### Milestone 2: Typed Resource Model & Provider Abstraction
 - **Objective:** Define the strongly typed Pydantic models for `EngineeringResource`, `ResourceType` (including `COMMAND`), `CompatibilityStatus`, `TrustLevel`, and the `KnowledgeProvider` Protocol.
 - **Files / Modules Impacted:**
-  - `src/forgecore/core/resources/models.py` (New)
-  - `src/forgecore/core/resources/base.py` (New: Provider Protocol)
-  - `src/forgecore/core/resources/__init__.py` (New)
+  - `src/sarthi/core/resources/models.py` (New)
+  - `src/sarthi/core/resources/base.py` (New: Provider Protocol)
+  - `src/sarthi/core/resources/__init__.py` (New)
 - **Dependencies:** Milestone 1.
 - **Tests Required:**
   - `test_resource_model_serialization`: Serializes and deserializes all resource types (including `COMMAND` and `SUPPORTING`).
@@ -83,15 +83,15 @@ flowchart TD
 - **Risks:** Over-complicating metadata fields. (Mitigated by including only fields required for selection, provenance, and trust).
 - **Acceptance Criteria:**
   - Typed models defined and passing `ruff check` and strict Pydantic validation.
-  - Existing `src/forgecore/core/models.py` remains 100% untouched and backward-compatible.
+  - Existing `src/sarthi/core/models.py` remains 100% untouched and backward-compatible.
 
 ---
 
 ### Milestone 3: Sarthi Native Provider Implementation
 - **Objective:** Implement `SarthiNativeProvider` conforming to `KnowledgeProvider`, wrapping the existing 85 YAML rules in `standards/` and the 16-point Core Contract.
 - **Files / Modules Impacted:**
-  - `src/forgecore/core/providers/native.py` (New)
-  - `src/forgecore/core/providers/__init__.py` (New)
+  - `src/sarthi/core/providers/native.py` (New)
+  - `src/sarthi/core/providers/__init__.py` (New)
 - **Dependencies:** Milestone 2.
 - **Tests Required:**
   - `test_native_provider_loads_all_85_rules`: Verifies exactly 85 rules are loaded as `EngineeringResource(type=RULE)`.
@@ -107,8 +107,8 @@ flowchart TD
 ### Milestone 4: ECC Bundled Provider Implementation
 - **Objective:** Implement `ECCBundledProvider` conforming to `KnowledgeProvider`, reading the bundled catalog from `resources/ecc/` and parsing Markdown frontmatter for skills, rules, commands, agents, and workflows.
 - **Files / Modules Impacted:**
-  - `src/forgecore/core/providers/ecc.py` (New)
-  - `src/forgecore/core/providers/registry.py` (New: ProviderRegistry)
+  - `src/sarthi/core/providers/ecc.py` (New)
+  - `src/sarthi/core/providers/registry.py` (New: ProviderRegistry)
 - **Dependencies:** Milestone 1, Milestone 2.
 - **Tests Required:**
   - `test_ecc_provider_loads_bundled_skills`: Confirms all curated skills are indexed with metadata.
@@ -127,9 +127,9 @@ flowchart TD
 ### Milestone 5: Unified Resource Selector, Precedence & Budgeting
 - **Objective:** Implement the `UnifiedResourceSelector` that combines resources across providers, resolves conflicts via the reconciled 6-tier precedence hierarchy (Security Invariants > AST Verifier > Core Contract > Project Config > Native Standards > ECC Guidance), and enforces the 3,000-token budget.
 - **Files / Modules Impacted:**
-  - `src/forgecore/core/resources/selector.py` (New)
-  - `src/forgecore/core/resources/precedence.py` (New)
-  - `src/forgecore/core/budget.py` (Updated to handle typed resources)
+  - `src/sarthi/core/resources/selector.py` (New)
+  - `src/sarthi/core/resources/precedence.py` (New)
+  - `src/sarthi/core/budget.py` (Updated to handle typed resources)
 - **Dependencies:** Milestone 3, Milestone 4.
 - **Tests Required:**
   - `test_precedence_invariants_cannot_be_overridden`: Asserts project configuration cannot weaken Tier 1 security boundaries.
@@ -148,9 +148,9 @@ flowchart TD
 ### Milestone 6: MCP Integration & Resource Delivery
 - **Objective:** Connect the Unified Resource Selector to MCP Tool Handlers (`tools.py`) and MCP Resources (`resources.py`), exposing ECC intelligence to AI coding agents over stdio.
 - **Files / Modules Impacted:**
-  - `src/forgecore/mcp/tools.py` (Updated to call ResourceSelector)
-  - `src/forgecore/mcp/resources.py` (Updated with `sarthi://` and `forgecore://` URIs)
-  - `src/forgecore/mcp/server.py` (Maintains tool registration)
+  - `src/sarthi/mcp/tools.py` (Updated to call ResourceSelector)
+  - `src/sarthi/mcp/resources.py` (Updated with `sarthi://` and `sarthi://` URIs)
+  - `src/sarthi/mcp/server.py` (Maintains tool registration)
 - **Dependencies:** Milestone 5.
 - **Tests Required:**
   - `test_mcp_get_standards_returns_hybrid_intelligence`: Asserts `get_standards` returns both native rules and ECC skills.
@@ -167,14 +167,14 @@ flowchart TD
 ### Milestone 7: Verification & Security Hardening
 - **Objective:** Ensure the deterministic verification engine (`Verifier`, `Runners`) remains completely insulated from external prompts and enforce PathGuard sandboxing over all resource access.
 - **Files / Modules Impacted:**
-  - `src/forgecore/core/verify/verifier.py`
-  - `src/forgecore/core/verify/trust.py`
-  - `src/forgecore/core/pathguard.py`
+  - `src/sarthi/core/verify/verifier.py`
+  - `src/sarthi/core/verify/trust.py`
+  - `src/sarthi/core/pathguard.py`
 - **Dependencies:** Milestone 6.
 - **Tests Required:**
   - `test_verifier_unaffected_by_ecc_skills`: Asserts that adding 150+ skills does not alter verifier exit codes.
   - `test_pathguard_blocks_arbitrary_resource_paths`: Traversal test against resource endpoints.
-  - `test_interactive_tty_approval_uncompromised`: Confirms `forgecore approve` still requires interactive TTY.
+  - `test_interactive_tty_approval_uncompromised`: Confirms `sarthi approve` still requires interactive TTY.
   - `test_no_arbitrary_command_execution`: Verifies unapproved test runners or scripts cannot be executed without interactive approval.
 - **Risks:** Unintended permission widening.
 - **Acceptance Criteria:**
@@ -186,7 +186,7 @@ flowchart TD
 ### Milestone 8: Antigravity IDE Optimization
 - **Objective:** Optimize the Antigravity integration adapter to advertise Sarthi capabilities, configure prompt sidecars, and align with Antigravity customization discovery.
 - **Files / Modules Impacted:**
-  - `src/forgecore/adapters/antigravity/adapter.py`
+  - `src/sarthi/adapters/antigravity/adapter.py`
   - `docs/antigravity-notes.md`
 - **Dependencies:** Milestone 6.
 - **Tests Required:**
@@ -202,9 +202,9 @@ flowchart TD
 ### Milestone 9: Multi-Client Adapter Expansion (Future Target)
 - **Objective:** Implement client adapters for Claude Code (`~/.claude/`), Cursor (`.cursorrules`), and VS Code, providing universal access to Sarthi's hybrid knowledge and verification engine.
 - **Files / Modules Impacted:**
-  - `src/forgecore/adapters/claude_code/` (New)
-  - `src/forgecore/adapters/cursor/` (New)
-  - `src/forgecore/cli.py` (New subcommands: `install claude`, `install cursor`)
+  - `src/sarthi/adapters/claude_code/` (New)
+  - `src/sarthi/adapters/cursor/` (New)
+  - `src/sarthi/cli.py` (New subcommands: `install claude`, `install cursor`)
 - **Dependencies:** Milestone 7.
 - **Acceptance Criteria:**
   - Seamless installation across Claude Code, Cursor, and Antigravity.

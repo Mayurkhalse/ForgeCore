@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from forgecore.core.verify.trust import CommandTrustManager
+from sarthi.core.verify.trust import CommandTrustManager
 
 from .fixtures import VALID_RATE_LIMIT_PATCH, create_login_api_fixture
 from .host_adapter import DeterministicHostAgentAdapter

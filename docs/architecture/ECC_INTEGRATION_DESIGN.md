@@ -2,7 +2,7 @@
 
 > **Document:** `docs/architecture/ECC_INTEGRATION_DESIGN.md`  
 > **Status:** Approved Architectural Specification (Reconciled)  
-> **Target Project:** Sarthi (evolving from ForgeCore)  
+> **Target Project:** Sarthi (evolving from Sarthi)  
 > **Baseline Snapshot:** Everything Claude Code (ECC) v2.2.3  
 > **Authoritative Commit SHA:** `c05b2d6614f62f6db0047669aa4eefb223d478f9` (abbreviated `c05b2d6`)  
 > **Release Tag Object SHA:** `93f9f6154d164ccb9f4dc38858a2bc2d5dcab222`  
@@ -14,7 +14,7 @@
 
 The core mission of **Sarthi** is to provide AI coding agents with a deterministic engineering foundation that ensures generated code meets production-grade standards. 
 
-In ForgeCore v0.1.0, engineering guidance was restricted to an initial, manually authored library of 85 YAML rules across 11 architectural layers. While effective for basic syntactic and structural verification, this handcrafted library created a severe limitation: **the breadth of engineering domain knowledge available to the AI agent was bounded by our internal authoring capacity.**
+In Sarthi v0.1.0, engineering guidance was restricted to an initial, manually authored library of 85 YAML rules across 11 architectural layers. While effective for basic syntactic and structural verification, this handcrafted library created a severe limitation: **the breadth of engineering domain knowledge available to the AI agent was bounded by our internal authoring capacity.**
 
 To resolve this limitation without sacrificing deterministic verification, Sarthi integrates **Everything Claude Code (ECC)** as its foundational engineering knowledge base. ECC represents the industry's most comprehensive open-source collection of production-ready agent skills, domain rules, specialized sub-agents, prompt commands, and procedural workflows.
 
@@ -40,13 +40,13 @@ flowchart TD
         Agent["Host AI Coding Agent"]
     end
 
-    subgraph IntegrationLayer["MCP Server & Interface Layer (`src/forgecore/mcp/`)"]
+    subgraph IntegrationLayer["MCP Server & Interface Layer (`src/sarthi/mcp/`)"]
         MCPServer["MCP Server (`server.py`)"]
         ToolHandlers["MCP Tool Handlers (`tools.py`)"]
         ResourceEndpoints["MCP Resources (`resources.py`)"]
     end
 
-    subgraph ProviderLayer["Knowledge Provider Architecture (`src/forgecore/core/providers/`)"]
+    subgraph ProviderLayer["Knowledge Provider Architecture (`src/sarthi/core/providers/`)"]
         ProviderRegistry["Provider Registry & Manager"]
         
         subgraph Providers["Concrete Providers"]
@@ -98,7 +98,7 @@ flowchart TD
 
 ## 3. The Typed Resource Model
 
-Rather than forcing every distinct ECC artifact into ForgeCore's legacy `Rule` model, Sarthi establishes an extensible, strongly typed hierarchy using Pydantic v2.
+Rather than forcing every distinct ECC artifact into Sarthi's legacy `Rule` model, Sarthi establishes an extensible, strongly typed hierarchy using Pydantic v2.
 
 ### 3.1 Resource Type Classification
 An engineering resource serves a distinct behavioral role in the agent harness lifecycle:
@@ -237,18 +237,18 @@ class KnowledgeProvider(Protocol):
 ```
 
 ### 4.2 The Concrete Providers
-1. **`SarthiNativeProvider` (`src/forgecore/core/providers/native.py`):**
+1. **`SarthiNativeProvider` (`src/sarthi/core/providers/native.py`):**
    - Wraps the existing 85 YAML standards in `standards/` and the Core Contract in `standards/contract.md`.
    - Maps each legacy `Rule` into an `EngineeringResource` of type `RULE`.
    - Maintains full backward compatibility with existing tests and schema expectations.
    - Assigned `TrustLevel.VERIFIED_NATIVE`.
-2. **`ECCBundledProvider` (`src/forgecore/core/providers/ecc.py`):**
+2. **`ECCBundledProvider` (`src/sarthi/core/providers/ecc.py`):**
    - Reads the local bundled catalog located at `resources/ecc/`.
    - Governed by `resources/ecc/manifest.json`.
    - Parses markdown frontmatter for ECC skills, agent prompts, commands, and workflows.
    - Assigned `TrustLevel.BUNDLED_ECC`.
 3. **`WorkspaceProvider` (Planned for Milestone 5):**
-   - Discovers project-specific rules from `.forgecore/rules/` or `.sarthi/rules/`.
+   - Discovers project-specific rules from `.sarthi/rules/` or `.sarthi/rules/`.
    - Assigned `TrustLevel.WORKSPACE_LOCAL` (strictly fenced and sandboxed).
 
 ---
@@ -353,7 +353,7 @@ A critical challenge of the hybrid architecture is preventing contradictions bet
 |         * MANDATORY: Non-negotiable engineering invariants across all projects          |
 +-----------------------------------------------------------------------------------------+
 | Tier 4: Project-Specific Requirements & Customizable Preferences                        |
-|         - Project configuration in `.forgecore/project.yaml` (`.sarthi/project.yaml`)   |
+|         - Project configuration in `.sarthi/project.yaml` (`.sarthi/project.yaml`)   |
 |         - Selection of optional architectural layers (`fastapi`, `react`, etc.)         |
 |         - User-approved custom test commands and execution arguments                    |
 |         - Non-mandatory severity adjustments (e.g. style rule from error to warning)    |
@@ -457,9 +457,9 @@ Integrating third-party knowledge bases increases the risk of indirect prompt in
 
 ## 9. Backward Compatibility Guarantees
 
-The ECC integration preserves 100% backward compatibility with the existing ForgeCore deployment:
-1. **Zero Renaming in Milestone 1:** The Python package remains `forgecore`, the CLI remains `forgecore`, and existing config files (`.forgecore/project.yaml`) continue to function without modification.
+The ECC integration preserves 100% backward compatibility with the existing Sarthi deployment:
+1. **Zero Renaming in Milestone 1:** The Python package remains `forgecore`, the CLI remains `forgecore`, and existing config files (`.sarthi/project.yaml`) continue to function without modification.
 2. **Stable MCP Tool Signatures:** All 6 tools (`initialize_project`, `get_project_context`, `get_standards`, `get_workflow`, `get_rule`, `verify_project`) retain identical signatures and return schemas.
 3. **Preservation of All 85 Rules:** The existing standards library in `standards/` remains completely untouched.
-4. **Existing Approvals Intact:** `~/.forgecore/approvals.json` is preserved without invalidation.
+4. **Existing Approvals Intact:** `~/.sarthi/approvals.json` is preserved without invalidation.
 5. **Clean Test Pass:** All 67 existing unit and integration tests continue to pass without modification.

@@ -1,8 +1,8 @@
-# Contributing to ForgeCore
+# Contributing to Sarthi
 
-Thank you for your interest in contributing to ForgeCore!
+Thank you for your interest in contributing to Sarthi!
 
-ForgeCore is built on the principle: **Standards are data, not code.**
+Sarthi is built on the principle: **Standards are data, not code.**
 Most contributions will be adding or refining engineering standards in `standards/`.
 
 ---
@@ -33,7 +33,7 @@ Most contributions will be adding or refining engineering standards in `standard
      tags: [topic]
      since: "0.1.0"
    ```
-4. Run `uv run forgecore lint-standards` to validate your changes.
+4. Run `uv run sarthi lint-standards` to validate your changes.
 5. Submit a pull request.
 
 ---
@@ -43,8 +43,8 @@ Most contributions will be adding or refining engineering standards in `standard
 1. Install `uv`: [https://docs.astral.sh/uv/](https://docs.astral.sh/uv/)
 2. Clone repository:
    ```bash
-   git clone https://github.com/forgecore/forgecore.git
-   cd forgecore
+   git clone https://github.com/Mayurkhalse/Sarthi.git
+   cd Sarthi
    ```
 3. Install dependencies:
    ```bash
@@ -54,7 +54,7 @@ Most contributions will be adding or refining engineering standards in `standard
    ```bash
    uv run ruff check .
    uv run pytest
-   uv run forgecore lint-standards
+   uv run sarthi lint-standards
    ```
 5. If modifying Semgrep verifier rules or fixtures under `standards/verifiers/semgrep/`:
    ```bash

@@ -1,5 +1,5 @@
-from forgecore.core.budget import BudgetManager
-from forgecore.core.models import Category, Rule, Severity
+from sarthi.core.budget import BudgetManager
+from sarthi.core.models import Category, Rule, Severity
 
 
 def test_budget_manager_truncation():

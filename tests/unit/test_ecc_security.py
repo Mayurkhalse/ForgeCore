@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from forgecore.core.pathguard import PathGuard, PathGuardError, PathTraversalError
-from forgecore.core.providers.ecc import ECCBundledProvider
-from forgecore.core.resources.models import ResourceType
-from forgecore.core.security import fence_untrusted, neutralize_fence_tags
-from forgecore.core.verify.trust import CommandTrustError, parse_and_validate_command
+from sarthi.core.pathguard import PathGuard, PathGuardError, PathTraversalError
+from sarthi.core.providers.ecc import ECCBundledProvider
+from sarthi.core.resources.models import ResourceType
+from sarthi.core.security import fence_untrusted, neutralize_fence_tags
+from sarthi.core.verify.trust import CommandTrustError, parse_and_validate_command
 
 
 def test_security_script_zero_execution_authorization():

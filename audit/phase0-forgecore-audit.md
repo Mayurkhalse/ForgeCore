@@ -1,4 +1,4 @@
-# Phase 0 Audit: ForgeCore Codebase & Architecture Verification
+# Phase 0 Audit: Sarthi Codebase & Architecture Verification
 
 > **Document:** `audit/phase0-forgecore-audit.md`  
 > **Status:** Read-Only Audit Complete  
@@ -14,7 +14,7 @@
 
 ```
 .
-|-- .forgecore/
+|-- .sarthi/
 |   |-- .gitignore
 |   |-- cache/
 |   |   |-- context.md
@@ -144,7 +144,7 @@
 **Evidence Source:** `pyproject.toml`
 ```toml
 [project]
-name = "forgecore"
+name = "sarthi"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -162,7 +162,7 @@ dependencies = [
 ]
 
 [project.scripts]
-forgecore = "forgecore.cli:app"
+forgecore = "sarthi.cli:app"
 
 [tool.ruff]
 target-version = "py311"
@@ -194,7 +194,7 @@ dev = [
 - **Package Name:** `forgecore`
 - **Package Version:** `0.1.0`
 - **Requires Python:** `>=3.13` (Declared in `pyproject.toml`; note that CI matrix in `.github/workflows/ci.yml` runs tests across `3.11`, `3.12`, `3.13` and adapter doctor checks `sys.version_info >= (3, 11)`).
-- **Console Entry Points:** `forgecore = "forgecore.cli:app"`
+- **Console Entry Points:** `forgecore = "sarthi.cli:app"`
 - **Runtime Dependencies:** `jinja2>=3.1.6`, `mcp>=2.3.0`, `pydantic>=2.14.2`, `pyyaml>=6.0.3`, `rich>=15.0.0`, `typer>=0.27.3`
 - **Development Dependencies:** `pytest>=9.2.0`, `pytest-asyncio>=1.4.1.post1`, `pytest-timeout>=2.4.0`, `ruff>=0.17.3`
 - **Build Backend:** `uv_build`
@@ -316,10 +316,10 @@ Every rule with a machine verifier (`verify.type != checklist`) was evaluated fo
 - **Claim in WORKFLOW.md (67 passed):** **VERIFIED**.
 
 #### Standards Linter Run
-**Command:** `.venv\Scripts\python.exe -m forgecore.cli lint-standards --summary`  
+**Command:** `.venv\Scripts\python.exe -m sarthi.cli lint-standards --summary`  
 **Raw Output:**
 ```
-Linting ForgeCore Standards Library...
+Linting Sarthi Standards Library...
 All standards, profiles, and verifiers passed schema validation!
 
 | Layer / Stack | Total Rules | Machine Verifiers | Status in v0.1 |
@@ -340,9 +340,9 @@ All standards, profiles, and verifiers passed schema validation!
 
 ---
 
-## 3. Rename Surface (ForgeCore -> Sarthi)
+## 3. Rename Surface (Sarthi -> Sarthi)
 
-A comprehensive case-insensitive search was performed across all tracked files for `forgecore`, `forge_core`, `forge-core`, `forge core`, and `FORGECORE`.
+A comprehensive case-insensitive search was performed across all tracked files for `forgecore`, `forge_core`, `forge-core`, `forge core`, and `SARTHI`.
 
 - **Total Matching Files:** **74**
 - **Total Occurrences:** **612**
@@ -352,15 +352,15 @@ A comprehensive case-insensitive search was performed across all tracked files f
 | Category | Classification | Hit Count & File List |
 |---|---|---|
 | **Python Package / Module Names & Imports** | `INTERNAL IDENTIFIER` | **52 occurrences across 21 files** (`src/forgecore/__init__.py`, `cli.py`, `core/*`, `mcp/*`, `adapters/*`, `tests/*`, `scripts/*`). Directory `src/forgecore` must be renamed to `src/sarthi`. |
-| **Pyproject Entry Points & Scripts** | `PUBLIC INTERFACE` | **2 occurrences in `pyproject.toml`** (`name = "forgecore"`, `[project.scripts] forgecore = "forgecore.cli:app"`). |
-| **CLI Command Names & Subcommands** | `PUBLIC INTERFACE` | **26 occurrences in `src/forgecore/cli.py`** (Typer app `name="forgecore"`, help strings, subcommands `init`, `standards`, `verify`, `doctor`, `approve`, `serve`). |
-| **MCP Server Name, Resources & Prompts** | `PUBLIC INTERFACE` | **17 occurrences across `server.py`, `resources.py`, `prompts.py`** (`MCPServer(name="forgecore")`, URIs: `forgecore://contract`, `forgecore://standards/{layer}`, `forgecore://workflows/{task_type}`). |
-| **Project Config Dir & Files** | `PERSISTENT DATA LOCATION` | **18 occurrences across 8 files** (`.forgecore/`, `.forgecore/project.yaml`, `.forgecore/cache/context.md`, `.forgecore/cache/fingerprint.json`, `.forgecore/cache/stack.json`). |
-| **User Dirs & Approvals File** | `PERSISTENT DATA LOCATION` | **8 occurrences across 4 files** (`Path.home() / ".forgecore"`, `~/.forgecore/approvals.json`). |
-| **Environment Variables** | `PUBLIC INTERFACE` | **3 occurrences in `server.py`** (`FORGECORE_DEBUG`). |
-| **Logger Names** | `INTERNAL IDENTIFIER` | **2 occurrences in `server.py`** (`logging.getLogger("forgecore")`). |
-| **Sentinel Strings & Adapter Markers** | `PERSISTENT DATA LOCATION` | **16 occurrences in `adapter.py`** (`<!-- FORGECORE-MANAGED-START -->`, `<!-- FORGECORE-MANAGED-END -->`, `"forgecore"` key in `mcp_config.json`, `forgecore-manifest.json`). |
-| **Cache Paths & Path Filters** | `INTERNAL IDENTIFIER` | **4 occurrences in `context.py`, `secrets.py`** (`.forgecore/cache`, `if ".forgecore" in rel: continue`). |
+| **Pyproject Entry Points & Scripts** | `PUBLIC INTERFACE` | **2 occurrences in `pyproject.toml`** (`name = "sarthi"`, `[project.scripts] forgecore = "sarthi.cli:app"`). |
+| **CLI Command Names & Subcommands** | `PUBLIC INTERFACE` | **26 occurrences in `src/forgecore/cli.py`** (Typer app `name="sarthi"`, help strings, subcommands `init`, `standards`, `verify`, `doctor`, `approve`, `serve`). |
+| **MCP Server Name, Resources & Prompts** | `PUBLIC INTERFACE` | **17 occurrences across `server.py`, `resources.py`, `prompts.py`** (`MCPServer(name="sarthi")`, URIs: `sarthi://contract`, `sarthi://standards/{layer}`, `sarthi://workflows/{task_type}`). |
+| **Project Config Dir & Files** | `PERSISTENT DATA LOCATION` | **18 occurrences across 8 files** (`.sarthi/`, `.sarthi/project.yaml`, `.sarthi/cache/context.md`, `.sarthi/cache/fingerprint.json`, `.sarthi/cache/stack.json`). |
+| **User Dirs & Approvals File** | `PERSISTENT DATA LOCATION` | **8 occurrences across 4 files** (`Path.home() / ".sarthi"`, `~/.sarthi/approvals.json`). |
+| **Environment Variables** | `PUBLIC INTERFACE` | **3 occurrences in `server.py`** (`SARTHI_DEBUG`). |
+| **Logger Names** | `INTERNAL IDENTIFIER` | **2 occurrences in `server.py`** (`logging.getLogger("sarthi")`). |
+| **Sentinel Strings & Adapter Markers** | `PERSISTENT DATA LOCATION` | **16 occurrences in `adapter.py`** (`<!-- SARTHI-MANAGED-START -->`, `<!-- SARTHI-MANAGED-END -->`, `"sarthi"` key in `mcp_config.json`, `sarthi-manifest.json`). |
+| **Cache Paths & Path Filters** | `INTERNAL IDENTIFIER` | **4 occurrences in `context.py`, `secrets.py`** (`.sarthi/cache`, `if ".sarthi" in rel: continue`). |
 | **Documentation & README** | `PUBLIC INTERFACE` | **257 occurrences** (`WORKFLOW.md`: 145, `README.md`: 63, `docs/AUDIT.md`: 27, `docs/SECURITY.md`: 7, `SECURITY.md`: 7, `NOTICE`: 4, `CONTRIBUTING.md`: 7). |
 | **Tests & Test Fixtures** | `INTERNAL IDENTIFIER` | **85 occurrences across 14 files** (`test_command_trust.py`: 22, `test_verify.py`: 16, `test_antigravity_adapter.py`: 12, fixture directories). |
 | **Standards & Workflows Text** | `PUBLIC INTERFACE` | **15 occurrences across 5 files** (`contract.md`: 6, `new-project.md`: 3, `feature.md`: 2, `bugfix.md`: 2, `refactor.md`: 2). |
@@ -379,36 +379,36 @@ def compute_commands_hash(commands: dict[str, str]) -> str:
     )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 ```
-- **The hash itself:** Hashes ONLY the sorted dictionary of command strings (e.g. `{"test": "pytest -q"}`). It does **NOT** contain the tool name ("forgecore"), the package name, or the project path.
+- **The hash itself:** Hashes ONLY the sorted dictionary of command strings (e.g. `{"test": "pytest -q"}`). It does **NOT** contain the tool name ("sarthi"), the package name, or the project path.
 - **The storage key:** `CommandTrustManager` keys approvals in `approvals.json` by `_normalize_project_path(project_root)`. If the project directory path itself changes on disk, the key invalidates.
 - **What is invalidated if the name changes:**
-  1. The approvals file path defaults to `Path.home() / ".forgecore" / "approvals.json"`. If renamed to `~/.sarthi`, existing approvals are lost unless migrated.
-  2. If the user had custom commands in `.forgecore/project.yaml` referencing `forgecore` (e.g. `forgecore verify`), that string changes, producing a new hash and requiring re-approval.
+  1. The approvals file path defaults to `Path.home() / ".sarthi" / "approvals.json"`. If renamed to `~/.sarthi`, existing approvals are lost unless migrated.
+  2. If the user had custom commands in `.sarthi/project.yaml` referencing `forgecore` (e.g. `sarthi verify`), that string changes, producing a new hash and requiring re-approval.
 
 #### b) How does uninstall locate what it installed? What would break if names changed?
 **Evidence Source:** `src/forgecore/adapters/antigravity/adapter.py:173-225`
 `uninstall()` locates installed artifacts using:
-1. Manifest path: `self.manifest_path = self.config_dir / "forgecore-manifest.json"`.
-2. MCP server key: `mcp_data["mcpServers"]["forgecore"]`.
-3. GEMINI.md sentinel markers: `<!-- FORGECORE-MANAGED-START -->` and `<!-- FORGECORE-MANAGED-END -->`.
+1. Manifest path: `self.manifest_path = self.config_dir / "sarthi-manifest.json"`.
+2. MCP server key: `mcp_data["mcpServers"]["sarthi"]`.
+3. GEMINI.md sentinel markers: `<!-- SARTHI-MANAGED-START -->` and `<!-- SARTHI-MANAGED-END -->`.
 
 **What would break if names changed between install and uninstall:**
-- If installed under "forgecore" and uninstalled under "sarthi":
+- If installed under "sarthi" and uninstalled under "sarthi":
   - It would look for `sarthi-manifest.json` (which doesn't exist) and fail to restore timestamped `.bak` files.
-  - It would attempt to delete `mcp_data["mcpServers"]["sarthi"]`, leaving the original `"forgecore"` server registration orphaned in `mcp_config.json`.
-  - It would search for `<!-- SARTHI-MANAGED-START -->` in `GEMINI.md`, leaving the existing `<!-- FORGECORE-MANAGED-START -->` block intact and uncleaned.
+  - It would attempt to delete `mcp_data["mcpServers"]["sarthi"]`, leaving the original `"sarthi"` server registration orphaned in `mcp_config.json`.
+  - It would search for `<!-- SARTHI-MANAGED-START -->` in `GEMINI.md`, leaving the existing `<!-- SARTHI-MANAGED-START -->` block intact and uncleaned.
 
-#### c) Does anything key persistent data on the string "forgecore"?
-**Yes. Nine distinct persistent entities key on "forgecore":**
-1. User home configuration directory: `~/.forgecore/` (`approvals.json`).
-2. Project workspace configuration directory: `<project_root>/.forgecore/`.
-3. Cached context artifact path: `<project_root>/.forgecore/cache/context.md`.
-4. Fingerprint artifact path: `<project_root>/.forgecore/cache/fingerprint.json`.
-5. Stack detection cache path: `<project_root>/.forgecore/cache/stack.json`.
-6. MCP server dictionary key in `mcp_config.json`: `mcpServers["forgecore"]`.
-7. Antigravity install manifest filename: `~/.gemini/config/forgecore-manifest.json`.
-8. MCP protocol resource URIs: `forgecore://contract`, `forgecore://standards/{layer}`, `forgecore://workflows/{task_type}`.
-9. Secrets runner path skip condition: `if ".forgecore" in rel: continue` (`src/forgecore/core/verify/runners/secrets.py:83`).
+#### c) Does anything key persistent data on the string "sarthi"?
+**Yes. Nine distinct persistent entities key on "sarthi":**
+1. User home configuration directory: `~/.sarthi/` (`approvals.json`).
+2. Project workspace configuration directory: `<project_root>/.sarthi/`.
+3. Cached context artifact path: `<project_root>/.sarthi/cache/context.md`.
+4. Fingerprint artifact path: `<project_root>/.sarthi/cache/fingerprint.json`.
+5. Stack detection cache path: `<project_root>/.sarthi/cache/stack.json`.
+6. MCP server dictionary key in `mcp_config.json`: `mcpServers["sarthi"]`.
+7. Antigravity install manifest filename: `~/.gemini/config/sarthi-manifest.json`.
+8. MCP protocol resource URIs: `sarthi://contract`, `sarthi://standards/{layer}`, `sarthi://workflows/{task_type}`.
+9. Secrets runner path skip condition: `if ".sarthi" in rel: continue` (`src/forgecore/core/verify/runners/secrets.py:83`).
 
 ---
 
@@ -502,11 +502,11 @@ def compute_commands_hash(commands: dict[str, str]) -> str:
 **Global Location:** `~/.gemini/config/` (or directory passed to constructor)
 1. `mcp_config.json`: Registers the `forgecore` MCP server entry.
 2. `GEMINI.md`: Injects the 16-point Core Contract.
-3. `forgecore-manifest.json`: Tracks installed files, python executable, server key, and backup paths.
+3. `sarthi-manifest.json`: Tracks installed files, python executable, server key, and backup paths.
 4. Timestamped backups: `mcp_config.json.<YYYYMMDD_HHMMSS>.bak`, `GEMINI.md.<YYYYMMDD_HHMMSS>.bak`.
 
 **Project Location:**
-1. `<workspace_root>/.forgecore/project.yaml` (written ONLY if `opts.with_scaffold=True` and config does not already exist).
+1. `<workspace_root>/.sarthi/project.yaml` (written ONLY if `opts.with_scaffold=True` and config does not already exist).
 
 ### 5.2 Content & Injected Markers [VERIFIED]
 
@@ -514,9 +514,9 @@ def compute_commands_hash(commands: dict[str, str]) -> str:
 ```json
 {
   "mcpServers": {
-    "forgecore": {
+    "sarthi": {
       "command": "/path/to/python",
-      "args": ["-m", "forgecore.cli", "serve"],
+      "args": ["-m", "sarthi.cli", "serve"],
       "env": {}
     }
   }
@@ -525,26 +525,26 @@ def compute_commands_hash(commands: dict[str, str]) -> str:
 
 **In `GEMINI.md`:**
 ```markdown
-<!-- FORGECORE-MANAGED-START -->
-# FORGECORE CORE CONTRACT v1
+<!-- SARTHI-MANAGED-START -->
+# SARTHI CORE CONTRACT v1
 ... [16 contract rules] ...
-<!-- FORGECORE-MANAGED-END -->
+<!-- SARTHI-MANAGED-END -->
 ```
 
 ### 5.3 Backup & Uninstall Behavior [VERIFIED]
 - **Backup Mechanism:** `_create_timestamped_backup()` copies the file to `.YYYYMMDD_HHMMSS.bak` (with incrementing `_1`, `_2` if collision occurs). These backups are never overwritten.
 - **Uninstall Mechanism:**
-  1. Reads `forgecore-manifest.json`.
+  1. Reads `sarthi-manifest.json`.
   2. If a backup is recorded in the manifest and exists on disk, restores the backup file.
   3. If no backup existed originally (file was newly created by install), deletes the created file.
-  4. If backup file is missing, parses `mcp_config.json` to delete the `"forgecore"` key, and parses `GEMINI.md` to strip the text between `<!-- FORGECORE-MANAGED-START -->` and `<!-- FORGECORE-MANAGED-END -->`.
-  5. Deletes `forgecore-manifest.json`.
+  4. If backup file is missing, parses `mcp_config.json` to delete the `"sarthi"` key, and parses `GEMINI.md` to strip the text between `<!-- SARTHI-MANAGED-START -->` and `<!-- SARTHI-MANAGED-END -->`.
+  5. Deletes `sarthi-manifest.json`.
   6. Preserves `.bak` files on disk for safety.
 
 ### 5.4 Inspection for Hooks, Skills, and `.agents/` Directories [VERIFIED]
 - **Does any code reference Antigravity hooks, rules directories, skills, or `.agents/` / `.agent/`?**
   **NO.**
-  `AntigravityAdapter` in `src/forgecore/adapters/antigravity/adapter.py` references **only** `mcp_config.json`, `GEMINI.md`, and `forgecore-manifest.json`. It contains zero code reading or writing `.agents/rules/`, `.agents/hooks.json`, `hooks.json`, or skills. (Mentions of hooks and skills appear only in doc files `docs/antigravity-notes.md`, `docs/AUDIT.md`, `README.md`, and `WORKFLOW.md`).
+  `AntigravityAdapter` in `src/forgecore/adapters/antigravity/adapter.py` references **only** `mcp_config.json`, `GEMINI.md`, and `sarthi-manifest.json`. It contains zero code reading or writing `.agents/rules/`, `.agents/hooks.json`, `hooks.json`, or skills. (Mentions of hooks and skills appear only in doc files `docs/antigravity-notes.md`, `docs/AUDIT.md`, `README.md`, and `WORKFLOW.md`).
 - **Is anything IDE-specific leaking outside the adapter package?**
   **NO.**
   A codebase search across `src/forgecore/core/` and `src/forgecore/mcp/` for `gemini` or `antigravity` yielded 0 matches. The IDE integration is strictly confined to `src/forgecore/adapters/antigravity/` and the CLI install commands.
@@ -704,7 +704,7 @@ Ranked from highest severity to lowest severity, with verifiable code evidence:
 
 ### 1. [CRITICAL] Hardcoded Server Key & Manifest Path Breaks Antigravity Integration on Rename
 - **Evidence:** `src/forgecore/adapters/antigravity/adapter.py:15, 90, 195`
-- **Risk:** The server key `"forgecore"` is hardcoded in `mcp_data["mcpServers"]["forgecore"]`, the manifest is hardcoded to `forgecore-manifest.json`, and the rule markers are hardcoded to `<!-- FORGECORE-MANAGED-START -->`. If Sarthi is installed over an existing ForgeCore installation without an explicit migration path, `uninstall()` will look for Sarthi keys and markers, leaving orphaned ForgeCore MCP servers and duplicate `GEMINI.md` blocks.
+- **Risk:** The server key `"sarthi"` is hardcoded in `mcp_data["mcpServers"]["sarthi"]`, the manifest is hardcoded to `sarthi-manifest.json`, and the rule markers are hardcoded to `<!-- SARTHI-MANAGED-START -->`. If Sarthi is installed over an existing Sarthi installation without an explicit migration path, `uninstall()` will look for Sarthi keys and markers, leaving orphaned Sarthi MCP servers and duplicate `GEMINI.md` blocks.
 
 ### 2. [CRITICAL] `TestRunner` Failure Rule ID Mismatch with Standards YAML
 - **Evidence:** `src/forgecore/core/verify/runners/tests.py:154` vs `standards/universal/rules.yaml:26`
@@ -715,12 +715,12 @@ Ranked from highest severity to lowest severity, with verifiable code evidence:
 - **Risk:** Adding new machine verifiers in YAML under ECC or Sarthi does **not** cause them to be run. The `Verifier` executes a hardcoded list of runners that run global tool sweeps rather than evaluating specific rule verifiers. Integrating ECC skills or rules will require refactoring `Verifier` into a genuine rule-to-runner dispatch engine.
 
 ### 4. [HIGH] Global Approval Storage Invalidation on Namespace Migration
-- **Evidence:** `src/forgecore/core/verify/trust.py:241` (`Path.home() / ".forgecore" / "approvals.json"`)
-- **Risk:** User approvals for project test suites are stored in `~/.forgecore/approvals.json`. When migrating to Sarthi (`~/.sarthi`), all previously granted developer test approvals will be lost, immediately blocking all agent test runs with `status: incomplete` until the developer re-runs interactive TTY approvals for every repository.
+- **Evidence:** `src/forgecore/core/verify/trust.py:241` (`Path.home() / ".sarthi" / "approvals.json"`)
+- **Risk:** User approvals for project test suites are stored in `~/.sarthi/approvals.json`. When migrating to Sarthi (`~/.sarthi`), all previously granted developer test approvals will be lost, immediately blocking all agent test runs with `status: incomplete` until the developer re-runs interactive TTY approvals for every repository.
 
 ### 5. [HIGH] ESLint Runner Relies Entirely on Target Project Configuration
 - **Evidence:** `src/forgecore/core/verify/runners/eslint.py:49` (`[*cmd_prefix, "--format=json", *file_args]`)
-- **Risk:** ForgeCore ships 10 rules claiming ESLint verification, but passes no configuration or ruleset to ESLint. If a target project does not already have `@typescript-eslint`, `eslint-plugin-react-hooks`, or `eslint-plugin-jsx-a11y` configured in its own local `.eslintrc`, those 10 rules are completely unenforced, providing a false illusion of verification.
+- **Risk:** Sarthi ships 10 rules claiming ESLint verification, but passes no configuration or ruleset to ESLint. If a target project does not already have `@typescript-eslint`, `eslint-plugin-react-hooks`, or `eslint-plugin-jsx-a11y` configured in its own local `.eslintrc`, those 10 rules are completely unenforced, providing a false illusion of verification.
 
 ### 6. [MEDIUM] Token Budget Approximations in Knowledge Layer
 - **Evidence:** `src/forgecore/core/budget.py:27-33` (`ceil(len(text) / 4)`)
@@ -728,11 +728,11 @@ Ranked from highest severity to lowest severity, with verifiable code evidence:
 
 ### 7. [MEDIUM] Python Version Declaration Conflict (`pyproject.toml` vs. CI & Adapter)
 - **Evidence:** `pyproject.toml:9` (`requires-python = ">=3.13"`) vs `.github/workflows/ci.yml:17` (`["3.11", "3.12", "3.13"]`)
-- **Risk:** Users attempting to install ForgeCore/Sarthi on Python 3.11 or 3.12 via standard pip/uv tools will be blocked by the `pyproject.toml` constraint, despite the code and CI suite supporting Python 3.11+.
+- **Risk:** Users attempting to install Sarthi/Sarthi on Python 3.11 or 3.12 via standard pip/uv tools will be blocked by the `pyproject.toml` constraint, despite the code and CI suite supporting Python 3.11+.
 
 ### 8. [MEDIUM] SecretsRunner Exclusion Path Hardcoding
-- **Evidence:** `src/forgecore/core/verify/runners/secrets.py:83` (`if ".forgecore" in rel: continue`)
-- **Risk:** `SecretsRunner` hardcodes `.forgecore` to avoid scanning its own cache. If the project directory is renamed to `.sarthi/` without updating this check, cached project summaries and stack files will be scanned as regular project code, potentially producing false-positive findings on cached snippets.
+- **Evidence:** `src/forgecore/core/verify/runners/secrets.py:83` (`if ".sarthi" in rel: continue`)
+- **Risk:** `SecretsRunner` hardcodes `.sarthi` to avoid scanning its own cache. If the project directory is renamed to `.sarthi/` without updating this check, cached project summaries and stack files will be scanned as regular project code, potentially producing false-positive findings on cached snippets.
 
 ### 9. [LOW] Semgrep Runner Non-Deterministic Availability on Windows
 - **Evidence:** `src/forgecore/core/verify/runners/semgrep.py:24` (`shutil.which("semgrep") is not None`)

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from forgecore.core.verify.trust import CommandTrustManager
+    from sarthi.core.verify.trust import CommandTrustManager
 
 FASTAPI_SHIM = '''"""Lightweight offline FastAPI compatibility shim over Starlette."""
 from __future__ import annotations
@@ -481,9 +481,9 @@ def create_login_api_fixture(
     (base_dir / "pyproject.toml").write_text(PYPROJECT_TOML, encoding="utf-8")
     (base_dir / "README.md").write_text(README_INITIAL, encoding="utf-8")
 
-    forgecore_dir = base_dir / ".forgecore"
-    forgecore_dir.mkdir(exist_ok=True)
-    (forgecore_dir / "project.yaml").write_text(PROJECT_YAML, encoding="utf-8")
+    sarthi_dir = base_dir / ".sarthi"
+    sarthi_dir.mkdir(exist_ok=True)
+    (sarthi_dir / "project.yaml").write_text(PROJECT_YAML, encoding="utf-8")
 
     # 5. Git repository initialization
     subprocess.run(["git", "init"], cwd=str(base_dir), check=True, capture_output=True)

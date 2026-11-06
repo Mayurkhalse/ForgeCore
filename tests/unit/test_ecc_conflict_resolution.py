@@ -1,9 +1,9 @@
 """Tests for 6-tier precedence hierarchy and explainable conflict resolution."""
 from __future__ import annotations
 
-from forgecore.core.models import ProjectConfig, RulesConfig
-from forgecore.core.resources.conflict import ConflictResolver
-from forgecore.core.resources.models import (
+from sarthi.core.models import ProjectConfig, RulesConfig
+from sarthi.core.resources.conflict import ConflictResolver
+from sarthi.core.resources.models import (
     EngineeringResource,
     PrecedenceTier,
     ResourceType,
@@ -78,7 +78,7 @@ def test_conflict_valid_higher_tier_supersedes_lower():
         provider_id="workspace",
         type=ResourceType.RULE,
         name="Custom FastAPI Rule",
-        source_path=".forgecore/rules/fastapi.yaml",
+        source_path=".sarthi/rules/fastapi.yaml",
         precedence_tier=int(PrecedenceTier.TIER_4_PROJECT_CONFIG),
         supersedes=["ecc.rule.python.fastapi"],
     )

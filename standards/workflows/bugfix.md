@@ -9,7 +9,7 @@ requires_tools:
 - Verify the test fails before applying any fix.
 
 ## 2. Identify Root Cause & Plan
-- Call `forgecore.get_standards(task=bug_description, task_type="bugfix")`.
+- Call `sarthi.get_standards(task=bug_description, task_type="bugfix")`.
 - Analyze boundary conditions, null/empty states, and unexpected inputs.
 
 ## 3. Implement Fix
@@ -17,7 +17,7 @@ requires_tools:
 - Confirm the reproduction test now passes.
 
 ## 4. Verify
-- Call `forgecore.verify_project(scope="changed")`.
+- Call `sarthi.verify_project(scope="changed")`.
 - Fix any security or lint regressions immediately.
 
 ## 5. Report

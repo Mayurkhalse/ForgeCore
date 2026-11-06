@@ -8,10 +8,10 @@ requires_tools:
 ## 1. Initialize
 - Scaffold the project layout following standard directory conventions for the chosen stack.
 - Create dependency manifest (`package.json`, `pyproject.toml`, or `pom.xml`).
-- Call `forgecore.initialize_project()` to detect layers and register configuration.
+- Call `sarthi.initialize_project()` to detect layers and register configuration.
 
 ## 2. Standards Review
-- Call `forgecore.get_standards(task="initial architecture setup", task_type="new-project")`.
+- Call `sarthi.get_standards(task="initial architecture setup", task_type="new-project")`.
 - Structure application layers: entrypoints, business services, data repositories, schemas.
 
 ## 3. Implement Core Skeleton
@@ -19,5 +19,5 @@ requires_tools:
 - Setup test harness and continuous verification.
 
 ## 4. Verify
-- Run `forgecore.verify_project(scope="all")`.
+- Run `sarthi.verify_project(scope="all")`.
 - Fix any configuration, lint, or security issues.

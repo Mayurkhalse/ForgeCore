@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from forgecore.core.pathguard import (
+from sarthi.core.pathguard import (
     FileTooLargeError,
     PathGuard,
     PathTraversalError,

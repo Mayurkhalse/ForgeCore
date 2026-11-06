@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path("C:/Users/Rajendra/Desktop/Projects/ForgeCore")
+REPO_ROOT = Path("C:/Users/Rajendra/Desktop/Projects/Sarthi")
 
 def run_mcp_stdio_verification():
     env = {
@@ -19,7 +19,7 @@ def run_mcp_stdio_verification():
     }
     fixture_dir = REPO_ROOT / "tests" / "fixtures" / "fastapi_app"
 
-    cmd = [sys.executable, "-u", "-m", "forgecore.mcp.server"]
+    cmd = [sys.executable, "-u", "-m", "sarthi.mcp.server"]
     print(f"Starting server process: {' '.join(cmd)}")
     proc = subprocess.Popen(
         cmd,
@@ -134,10 +134,10 @@ def run_mcp_stdio_verification():
         print(f"Passed checks: {vp_data.get('passed_checks')}")
         print(f"Failed checks: {vp_data.get('failed_checks')}")
 
-        # 9. Direct forgecore://ecc/{resource_id} Resource Retrieval
-        print("\n--- 8. Direct Resource Read (forgecore://ecc/ecc.skill.fastapi-patterns) ---")
+        # 9. Direct sarthi://ecc/{resource_id} Resource Retrieval
+        print("\n--- 8. Direct Resource Read (sarthi://ecc/ecc.skill.fastapi-patterns) ---")
         read_resp = send_and_recv("resources/read", {
-            "uri": "forgecore://ecc/ecc.skill.fastapi-patterns",
+            "uri": "sarthi://ecc/ecc.skill.fastapi-patterns",
         })
         contents = read_resp.get("result", {}).get("contents", [])
         assert len(contents) > 0
@@ -151,7 +151,7 @@ def run_mcp_stdio_verification():
         # 10. Invalid Resource Handling
         print("\n--- 9. Invalid Resource Handling ---")
         inv_read_resp = send_and_recv("resources/read", {
-            "uri": "forgecore://ecc/ecc.skill.nonexistent_bogus",
+            "uri": "sarthi://ecc/ecc.skill.nonexistent_bogus",
         })
         inv_content = json.loads(inv_read_resp.get("result", {}).get("contents", [])[0]["text"])
         print(f"Invalid resource result: {inv_content}")

@@ -1,7 +1,7 @@
-ForgeCore
-Copyright (c) 2026 ForgeCore Contributors
+Sarthi
+Copyright (c) 2026 Sarthi Contributors
 
-This product includes software and designs developed by the ForgeCore project.
+This product includes software and designs developed by the Sarthi project.
 
 Credits and Bundled Intelligence:
 This product includes software developed as part of Everything Claude Code (ECC)
@@ -9,5 +9,5 @@ by Affaan Mustafa (https://github.com/affaan-m/ECC).
 Licensed under the MIT License.
 Bundled Snapshot: v2.2.3 (Commit c05b2d6614f62f6db0047669aa4eefb223d478f9)
 
-ForgeCore's standards, rule schema, selection logic, MCP implementation, and verify loop
+Sarthi's standards, rule schema, selection logic, MCP implementation, and verify loop
 are independently authored.

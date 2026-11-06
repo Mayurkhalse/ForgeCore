@@ -192,7 +192,7 @@ ECC is licensed under the **MIT License** by Affaan Mustafa. Strict compliance w
    Bundled Snapshot: v2.2.3 (Commit c05b2d6614f62f6db0047669aa4eefb223d478f9)
    ```
 3. **Header Preservation:** Any ECC rule, skill, or workflow containing original author attribution or copyright comments retains those comments without modification.
-4. **Independent Authorship Distinction:** All Sarthi core code (`src/forgecore/`), verification runners, `PathGuard`, and native standards (`standards/`) remain independently authored by the Sarthi / ForgeCore development team.
+4. **Independent Authorship Distinction:** All Sarthi core code (`src/sarthi/`), verification runners, `PathGuard`, and native standards (`standards/`) remain independently authored by the Sarthi / Sarthi development team.
 
 ---
 

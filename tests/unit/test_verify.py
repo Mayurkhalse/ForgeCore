@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from forgecore.core.models import Severity
-from forgecore.core.verify.verifier import Verifier
+from sarthi.core.models import Severity
+from sarthi.core.verify.verifier import Verifier
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
@@ -51,8 +51,8 @@ def test_ruff_runner_force_exclude_respects_config(tmp_path: Path) -> None:
     clean_file = src_dir / "clean.py"
     clean_file.write_text("x = 42\n", encoding="utf-8")
 
-    from forgecore.core.models import ProjectConfig, RunContext
-    from forgecore.core.verify.runners.ruff import RuffRunner
+    from sarthi.core.models import ProjectConfig, RunContext
+    from sarthi.core.verify.runners.ruff import RuffRunner
 
     runner = RuffRunner()
     ctx = RunContext(
@@ -82,8 +82,8 @@ def test_ruff_runner_batches_500_files(tmp_path: Path) -> None:
             f.write_text(f"val = {i}\n", encoding="utf-8")
         files.append(f)
 
-    from forgecore.core.models import ProjectConfig, RunContext
-    from forgecore.core.verify.runners.ruff import RuffRunner
+    from sarthi.core.models import ProjectConfig, RunContext
+    from sarthi.core.verify.runners.ruff import RuffRunner
 
     runner = RuffRunner()
     ctx = RunContext(
@@ -104,7 +104,7 @@ def test_ruff_runner_failed_batch_marks_report_incomplete(tmp_path: Path, monkey
     """Verifies any skipped or failed batch results in status 'incomplete', never clean."""
     import subprocess
 
-    from forgecore.core.verify.verifier import Verifier
+    from sarthi.core.verify.verifier import Verifier
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
@@ -136,7 +136,7 @@ def test_verifier_scope_in_git_repo(tmp_path: Path) -> None:
     """Verifies in a git repository, scope defaults to git diff HEAD + untracked files."""
     import subprocess
 
-    from forgecore.core.verify.verifier import Verifier
+    from sarthi.core.verify.verifier import Verifier
 
     # Initialize git repo
     subprocess.run(["git", "init"], cwd=str(tmp_path), capture_output=True, check=True)
@@ -164,7 +164,7 @@ def test_verifier_scope_in_git_repo(tmp_path: Path) -> None:
 
 def test_verifier_scope_non_git_repo_capped(tmp_path: Path) -> None:
     """Verifies outside git, files are capped at 500 (newest first) and report is marked incomplete."""
-    from forgecore.core.verify.verifier import Verifier
+    from sarthi.core.verify.verifier import Verifier
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nname = "test-cap"\nversion = "0.1.0"\n', encoding="utf-8")
@@ -188,7 +188,7 @@ def test_verifier_scope_non_git_repo_capped(tmp_path: Path) -> None:
 
 def test_verifier_wall_clock_budget_expiry(tmp_path: Path) -> None:
     """Verifies wall-clock budget expiry returns partial results with status incomplete."""
-    from forgecore.core.verify.verifier import Verifier
+    from sarthi.core.verify.verifier import Verifier
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nname = "test-timeout"\nversion = "0.1.0"\n', encoding="utf-8")
@@ -207,7 +207,7 @@ def test_verifier_missing_optional_semgrep_produces_warning_and_passes(tmp_path:
     """Verifies missing optional semgrep produces a warning and report passes if required checks pass."""
     import shutil
 
-    from forgecore.core.verify.verifier import Verifier
+    from sarthi.core.verify.verifier import Verifier
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nname = "test-opt"\nversion = "0.1.0"\n', encoding="utf-8")
@@ -234,8 +234,8 @@ def test_verifier_missing_optional_semgrep_produces_warning_and_passes(tmp_path:
 
 def test_verifier_missing_required_tool_marks_incomplete(tmp_path: Path, monkeypatch) -> None:
     """Verifies missing required tool (e.g. ruff on python files) produces incomplete status."""
-    from forgecore.core.verify.runners.ruff import RuffRunner
-    from forgecore.core.verify.verifier import Verifier
+    from sarthi.core.verify.runners.ruff import RuffRunner
+    from sarthi.core.verify.verifier import Verifier
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nname = "test-req"\nversion = "0.1.0"\n', encoding="utf-8")
@@ -254,7 +254,7 @@ def test_verifier_missing_required_tool_marks_incomplete(tmp_path: Path, monkeyp
 
 def test_verifier_unapproved_tests_mark_incomplete(tmp_path: Path) -> None:
     """Verifies unapproved test suite produces incomplete status with required=True."""
-    from forgecore.core.verify.verifier import Verifier
+    from sarthi.core.verify.verifier import Verifier
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nname = "test-unapp"\nversion = "0.1.0"\n', encoding="utf-8")
@@ -270,7 +270,7 @@ def test_verifier_unapproved_tests_mark_incomplete(tmp_path: Path) -> None:
 
 def test_checklist_cap_and_ranking(tmp_path: Path) -> None:
     """Verifies ChecklistRunner caps items at 8, ranked by severity and relevance to changed files."""
-    from forgecore.core.models import (
+    from sarthi.core.models import (
         Category,
         ProjectConfig,
         Rule,
@@ -279,7 +279,7 @@ def test_checklist_cap_and_ranking(tmp_path: Path) -> None:
         Severity,
         VerifierType,
     )
-    from forgecore.core.verify.runners.checklist import ChecklistRunner
+    from sarthi.core.verify.runners.checklist import ChecklistRunner
 
     # Create 12 checklist rules of varying severities and layers
     rules: list[Rule] = []

@@ -2,7 +2,7 @@
 
 ## 1. Overview & Objectives
 
-Sarthi is evolving from ForgeCore into an IDE-independent engineering intelligence platform. While traditional unit and component tests verify that individual classes and MCP endpoints execute without crashing, they fail to answer the critical question:
+Sarthi is evolving from Sarthi into an IDE-independent engineering intelligence platform. While traditional unit and component tests verify that individual classes and MCP endpoints execute without crashing, they fail to answer the critical question:
 
 > **Can Sarthi reliably supply correct engineering guidance to an AI coding agent, preserve security and fence invariants under adversarial conditions, and deterministically verify resulting code changes without flaky or uncontrolled external dependencies?**
 
@@ -85,7 +85,7 @@ sequenceDiagram
 | Scenario ID | Test Name | Adversarial Vector | Expected Defense & Assertion |
 | :--- | :--- | :--- | :--- |
 | **E2E-ADV-01** | `test_scenario_1_prompt_injection` | Prompt injection (`<instruction>Ignore all security...</instruction>`) attempting fence breakout | Breakouts neutralized (`neutralize_fence_tags`); security layers and rules remain active. |
-| **E2E-ADV-02** | `test_scenario_2_project_config_tampering` | Malicious `.forgecore/project.yaml` attempting command chaining (`; rm -rf`) or unapproved binaries | `CommandTrustError` raised on metacharacters; unapproved command flags required skip (`status == "incomplete"`). |
+| **E2E-ADV-02** | `test_scenario_2_project_config_tampering` | Malicious `.sarthi/project.yaml` attempting command chaining (`; rm -rf`) or unapproved binaries | `CommandTrustError` raised on metacharacters; unapproved command flags required skip (`status == "incomplete"`). |
 | **E2E-ADV-03** | `test_scenario_3_secret_file_access` | Agent attempting to read credential files (`.env`, `id_rsa`) | `PathGuard.read_text()` rejects with `SecretFileAccessError`. |
 | **E2E-ADV-04** | `test_scenario_4_path_traversal` | Agent attempting path traversal escape (`../../etc/passwd`) | `PathGuard.safe_path()` rejects with `PathTraversalError`. |
 | **E2E-ADV-05** | `test_scenario_5_irrelevant_stack_isolation` | Agent requesting Spring / React rules for a FastAPI project | Stack isolation filters out cross-stack contamination; only FastAPI/universal rules returned. |
@@ -103,7 +103,7 @@ The `DeterministicHostAgentAdapter` (`tests/e2e/host_adapter.py`) enforces stric
 1. **No External Network Calls:** Must never invoke remote LLMs or web endpoints during CI runs.
 2. **Auditable Trace Recording:** Records context received, rules selected, workflow rendered, instruction assertions, and applied patch summary in a `HostInteractionTrace`.
 3. **Core Contract Assertion:** Enforces that the Core Contract summary is presented to the agent before any implementation work.
-4. **Isolated Trust Store:** Uses project-scoped `CommandTrustManager` instances stored in temporary directories to prevent pollution of user-level configuration (`~/.forgecore`).
+4. **Isolated Trust Store:** Uses project-scoped `CommandTrustManager` instances stored in temporary directories to prevent pollution of user-level configuration (`~/.sarthi`).
 
 ---
 
@@ -135,7 +135,7 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) executes the test suite
 uv run ruff check .
 
 # 2. Validate Standards Library
-uv run forgecore lint-standards
+uv run sarthi lint-standards
 
 # 3. Verify ECC Snapshot Integrity
 uv run python scripts/verify_ecc_snapshot.py

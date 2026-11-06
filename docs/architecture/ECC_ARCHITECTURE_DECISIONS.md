@@ -2,7 +2,7 @@
 
 > **Document:** `docs/architecture/ECC_ARCHITECTURE_DECISIONS.md`  
 > **Status:** Ratified Baseline Architecture (Reconciled)  
-> **Target Project:** Sarthi (evolving from ForgeCore)  
+> **Target Project:** Sarthi (evolving from Sarthi)  
 > **Upstream Release Baseline:** ECC v2.2.3  
 > **Authoritative Commit SHA:** `c05b2d6614f62f6db0047669aa4eefb223d478f9` (abbreviated `c05b2d6`)  
 > **Release Tag Object SHA:** `93f9f6154d164ccb9f4dc38858a2bc2d5dcab222`  
@@ -55,7 +55,7 @@ We will pin our baseline strictly to the verified official release commit of **E
 ### ADR-002: Dual Provider Abstraction (ECC + Sarthi Native) over Monolithic Storage
 
 #### Context
-ForgeCore already possesses an established standards library (`standards/`) and workflow engine. ECC introduces over 150 skills and rules. Merging ECC directly into the existing `standards/` directory would destroy provenance, complicate future ECC snapshot upgrades, and blur the distinction between verified native rules and third-party guidance.
+Sarthi already possesses an established standards library (`standards/`) and workflow engine. ECC introduces over 150 skills and rules. Merging ECC directly into the existing `standards/` directory would destroy provenance, complicate future ECC snapshot upgrades, and blur the distinction between verified native rules and third-party guidance.
 
 #### Decision
 Introduce a `KnowledgeProvider` Protocol and implement two distinct providers:
@@ -63,8 +63,8 @@ Introduce a `KnowledgeProvider` Protocol and implement two distinct providers:
 2. `ECCBundledProvider`: Owns the curated snapshot of ECC skills, rules, prompt commands, agent definitions, and workflows.
 
 #### Alternatives Considered
-1. *Monolithic Conversion:* Convert all ECC skills into ForgeCore YAML files in `standards/`. Rejected because skills are procedural Markdown documents, not declarative rule definitions.
-2. *Complete Replacement:* Delete ForgeCore rules and use ECC exclusively. Rejected because ECC lacks Sarthi's deterministic AST verifier bindings (Ruff, Semgrep, ESLint).
+1. *Monolithic Conversion:* Convert all ECC skills into Sarthi YAML files in `standards/`. Rejected because skills are procedural Markdown documents, not declarative rule definitions.
+2. *Complete Replacement:* Delete Sarthi rules and use ECC exclusively. Rejected because ECC lacks Sarthi's deterministic AST verifier bindings (Ruff, Semgrep, ESLint).
 
 #### Consequences
 - **Positive:** Clean architectural decoupling; independent versioning; trivial addition of future workspace or enterprise providers.
@@ -75,7 +75,7 @@ Introduce a `KnowledgeProvider` Protocol and implement two distinct providers:
 ### ADR-003: Strongly Typed Polymorphic Resource Model (including `COMMAND`) over Universal Rule Model Overload
 
 #### Context
-ForgeCore models all knowledge using `forgecore.core.models.Rule`. While suitable for single-line assertions (`id`, `rule`, `good`, `bad`), forcing procedural skills, prompt commands, multi-stage agent workflows, and sub-agent personas into `Rule` would require abusing optional fields or serializing complex structures into string blobs. Furthermore, the preliminary architecture conflated prompt commands with agent definitions.
+Sarthi models all knowledge using `sarthi.core.models.Rule`. While suitable for single-line assertions (`id`, `rule`, `good`, `bad`), forcing procedural skills, prompt commands, multi-stage agent workflows, and sub-agent personas into `Rule` would require abusing optional fields or serializing complex structures into string blobs. Furthermore, the preliminary architecture conflated prompt commands with agent definitions.
 
 #### Decision
 Create a typed `EngineeringResource` model with an explicit `ResourceType` enum: `RULE`, `SKILL`, `AGENT`, `COMMAND`, `WORKFLOW`, `CONTEXT`, `HOOK`, `MCP_CONFIG`, `SUPPORTING`.
@@ -89,14 +89,14 @@ Legacy `Rule` instances are mapped cleanly into `EngineeringResource(type=Resour
 
 #### Consequences
 - **Positive:** Type-safe resource manipulation; accurate metadata indexing; clear semantics for agents.
-- **Negative:** New schemas in `src/forgecore/core/resources/models.py` must be maintained alongside legacy models during transition.
+- **Negative:** New schemas in `src/sarthi/core/resources/models.py` must be maintained alongside legacy models during transition.
 
 ---
 
 ### ADR-004: Preservation of Existing 85 YAML Standards & 16-Point Core Contract
 
 #### Context
-ForgeCore's 85 standards have been rigorously verified through schema linting (`lint-standards`), test suites (67 passing tests), and AST verifier bindings. Discarding them in favor of unverified ECC markdown would cause an immediate regression in verification rigor.
+Sarthi's 85 standards have been rigorously verified through schema linting (`lint-standards`), test suites (67 passing tests), and AST verifier bindings. Discarding them in favor of unverified ECC markdown would cause an immediate regression in verification rigor.
 
 #### Decision
 The 85 standards and the 16-point Core Contract remain completely intact in their original locations (`standards/`). They form the foundational baseline of Sarthi's `NativeProvider`.
@@ -127,7 +127,7 @@ Defer all automated lifecycle hooks, tool interception, and background daemon ex
 ### ADR-006: Preservation of `forgecore` Package Name and CLI During Milestone 1
 
 #### Context
-Renaming the package from `forgecore` to `sarthi` touches 74 files, 612 identifiers, persistent config directories (`.forgecore/`), and approvals (`~/.forgecore/approvals.json`). Attempting to rename the package simultaneously with the ECC integration would create an unmaintainable diff and high risk of regressions.
+Renaming the package from `forgecore` to `sarthi` touches 74 files, 612 identifiers, persistent config directories (`.sarthi/`), and approvals (`~/.sarthi/approvals.json`). Attempting to rename the package simultaneously with the ECC integration would create an unmaintainable diff and high risk of regressions.
 
 #### Decision
 All changes in Milestone 1 will retain the package name `forgecore`, CLI command `forgecore`, and existing config paths. The formal namespace rename to `sarthi` is scheduled as a dedicated, independent milestone.
@@ -148,7 +148,7 @@ Ratify the reconciled 6-tier precedence hierarchy:
 1. **Tier 1: Mandatory Security & Sandboxing Invariants (Inviolable):** `PathGuard` workspace containment, credential denylist, command allowlist, mandatory interactive TTY approval for command trust, and untrusted XML fence sanitization. CANNOT be overridden or disabled by project config, rules, or prompts.
 2. **Tier 2: Deterministic Machine Verification Outcomes (Hard Gate):** AST verifiers (Semgrep SQL injection), secret scanners, Ruff errors, and test suite execution failures halt workflows unconditionally. Natural language advice never supersedes static checks.
 3. **Tier 3: Mandatory Sarthi Core Contract Requirements:** 16 non-negotiable core engineering rules in `standards/contract.md`.
-4. **Tier 4: Project-Specific Requirements & Customizable Preferences:** Workspace configuration in `.forgecore/project.yaml` (optional layer activation, approved test runners, non-mandatory severity customization). Strictly bounded: project config cannot weaken Tiers 1-3.
+4. **Tier 4: Project-Specific Requirements & Customizable Preferences:** Workspace configuration in `.sarthi/project.yaml` (optional layer activation, approved test runners, non-mandatory severity customization). Strictly bounded: project config cannot weaken Tiers 1-3.
 5. **Tier 5: Sarthi Native Standards Library:** 85 declarative architectural standards across 11 layers.
 6. **Tier 6: Bundled ECC Engineering Guidance:** Procedural skills, workflows, prompt commands, agent personas, and contexts. Advisory only.
 
@@ -196,7 +196,7 @@ The following architectural questions are cataloged for resolution prior to Phas
 1. **Host-Level Subagent Delegation:**
    - *Question:* Does Antigravity expose a native API for MCP servers to trigger subagents directly, or must ECC agent personas be delivered exclusively as prompt templates in chat context?
 2. **Approvals Storage Path Migration:**
-   - *Question:* When the formal rename occurs, should Sarthi automatically copy existing approval hashes from `~/.forgecore/approvals.json` to `~/.sarthi/approvals.json`, or prompt the user once for bulk re-approval?
+   - *Question:* When the formal rename occurs, should Sarthi automatically copy existing approval hashes from `~/.sarthi/approvals.json` to `~/.sarthi/approvals.json`, or prompt the user once for bulk re-approval?
 3. **AgentShield Integration Runtime:**
    - *Question:* Should AgentShield be bundled as a compiled Node standalone executable, or should its static checks be re-implemented in native Python to avoid requiring Node.js in pure-Python environments?
 4. **User-Customized ECC Skills:**

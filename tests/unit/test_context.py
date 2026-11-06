@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from forgecore.core.context import ContextBuilder
+from sarthi.core.context import ContextBuilder
 
 
 def test_context_builder_fingerprint_and_caching(tmp_path: Path):

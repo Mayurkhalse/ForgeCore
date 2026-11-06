@@ -1,6 +1,6 @@
 # Antigravity Technical Notes (Milestone 0)
 
-This document records the verified configuration paths, formats, and lifecycle capabilities of Google Antigravity (AGY) relevant to ForgeCore.
+This document records the verified configuration paths, formats, and lifecycle capabilities of Google Antigravity (AGY) relevant to Sarthi.
 
 ---
 
@@ -11,9 +11,9 @@ This document records the verified configuration paths, formats, and lifecycle c
   ```json
   {
     "mcpServers": {
-      "forgecore": {
+      "sarthi": {
         "command": "python",
-        "args": ["-m", "forgecore.cli", "serve"],
+        "args": ["-m", "sarthi.cli", "serve"],
         "env": {}
       }
     }
@@ -25,7 +25,7 @@ This document records the verified configuration paths, formats, and lifecycle c
 - **Server `instructions` Support:**
   - MCP `initialize` returns `serverInfo`, `capabilities`, and optional `instructions: string`.
   - In Antigravity, MCP tools are automatically discovered and surfaced to the agent.
-  - As planned in ForgeCore's 3-channel model, Channel A delivers the Core Contract via `instructions`, Channel B writes the global rule file, and Channel C enforces via deterministic verification.
+  - As planned in Sarthi's 3-channel model, Channel A delivers the Core Contract via `instructions`, Channel B writes the global rule file, and Channel C enforces via deterministic verification.
 
 ---
 

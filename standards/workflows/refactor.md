@@ -6,7 +6,7 @@ requires_tools:
 ---
 ## 1. Baseline Verification
 - Run existing tests to ensure clean green state prior to refactoring.
-- Call `forgecore.get_standards(task=refactor_goal, task_type="refactor")`.
+- Call `sarthi.get_standards(task=refactor_goal, task_type="refactor")`.
 
 ## 2. Plan Architecture
 - Clarify domain boundaries, service layers, and contracts.
@@ -17,7 +17,7 @@ requires_tools:
 - Keep business logic isolated from presentation and database layers.
 
 ## 4. Verify
-- Call `forgecore.verify_project(scope="changed")`.
+- Call `sarthi.verify_project(scope="changed")`.
 - Ensure all tests pass and static checks report zero violations.
 
 ## 5. Report

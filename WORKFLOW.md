@@ -1,4 +1,4 @@
-# ForgeCore: Architecture, Workflow & Verification Engine Specification
+# Sarthi: Architecture, Workflow & Verification Engine Specification
 
 > **Version:** 0.1.0  
 > **Status:** Production / Active Architecture  
@@ -11,7 +11,7 @@
 1. [Executive Summary & Philosophy](#1-executive-summary--philosophy)
    - [The Problem: The Agent Alignment & Verification Gap](#the-problem-the-agent-alignment--verification-gap)
    - [Core Philosophies](#core-philosophies)
-   - [What ForgeCore Is vs. What ForgeCore Is Not](#what-forgecore-is-vs-what-forgecore-is-not)
+   - [What Sarthi Is vs. What Sarthi Is Not](#what-sarthi-is-vs-what-sarthi-is-not)
 2. [High-Level System Architecture](#2-high-level-system-architecture)
    - [High-Level System Flowchart](#high-level-system-flowchart)
    - [Core Component Roles & Responsibilities](#core-component-roles--responsibilities)
@@ -31,7 +31,7 @@
    - [Tier 3: Engineering Standards Library (85 Rules Across 11 Layers)](#tier-3-engineering-standards-library-85-rules-across-11-layers)
    - [Tier 4: Deterministic Machine Verifiers](#tier-4-deterministic-machine-verifiers)
 5. [ECC (Everything Claude Code) Integration & Evolution](#5-ecc-everything-claude-code-integration--evolution)
-   - [Distinction: ForgeCore vs. ECC](#distinction-forgecore-vs-ecc)
+   - [Distinction: Sarthi vs. ECC](#distinction-sarthi-vs-ecc)
    - [Architectural Mapping of Capabilities](#architectural-mapping-of-capabilities)
    - [Proposed Unified Resource Model](#proposed-unified-resource-model)
    - [Conflict Resolution & Precedence Policy](#conflict-resolution--precedence-policy)
@@ -40,13 +40,13 @@
    - [The Complete 19-Step Runtime Lifecycle](#the-complete-19-step-runtime-lifecycle)
    - [Action Classification: Agent vs. Automatic vs. Human-Approved](#action-classification-agent-vs-automatic-vs-human-approved)
    - [Configuration Injection & Timestamped Backup Strategy](#configuration-injection--timestamped-backup-strategy)
-7. [Before vs. After ForgeCore: Engineering Guardrails in Action](#7-before-vs-after-forgecore-engineering-guardrails-in-action)
+7. [Before vs. After Sarthi: Engineering Guardrails in Action](#7-before-vs-after-sarthi-engineering-guardrails-in-action)
    - [Comparative Workflow Diagram](#comparative-workflow-diagram)
    - [Concrete Failure Mode & Remediation Case Study: FastAPI Search Endpoint](#concrete-failure-mode--remediation-case-study-fastapi-search-endpoint)
 8. [Complete Request Lifecycle (The 7 Execution Phases)](#8-complete-request-lifecycle-the-7-execution-phases)
    - [Request Phase Flowchart](#request-phase-flowchart)
    - [Detailed Phase Operations](#detailed-phase-operations)
-9. [How ForgeCore Improves Code Quality Across 8 Dimensions](#9-how-forgecore-improves-code-quality-across-8-dimensions)
+9. [How Sarthi Improves Code Quality Across 8 Dimensions](#9-how-sarthi-improves-code-quality-across-8-dimensions)
 10. [Stack-Agnostic Architecture & Extensibility](#10-stack-agnostic-architecture--extensibility)
     - [Stack Adapter Model](#stack-adapter-model)
     - [Extensibility Guide: Adding a New Stack](#extensibility-guide-adding-a-new-stack)
@@ -80,11 +80,11 @@ Modern generative AI coding agents (such as Google Antigravity, Claude Code, Cur
 
 ### Core Philosophies
 
-ForgeCore was created to solve these failure modes through three unyielding engineering tenets:
+Sarthi was created to solve these failure modes through three unyielding engineering tenets:
 
 ```
 +-----------------------------------------------------------------------------------+
-|                           THE THREE FORGECORE TENETS                              |
+|                           THE THREE SARTHI TENETS                              |
 +-----------------------------------------------------------------------------------+
 | 1. Verifiable Beats Aspirational                                                  |
 |    If an engineering standard cannot be deterministically verified by an AST     |
@@ -104,9 +104,9 @@ ForgeCore was created to solve these failure modes through three unyielding engi
 +-----------------------------------------------------------------------------------+
 ```
 
-### What ForgeCore Is vs. What ForgeCore Is Not
+### What Sarthi Is vs. What Sarthi Is Not
 
-| What ForgeCore IS | What ForgeCore IS NOT |
+| What Sarthi IS | What Sarthi IS NOT |
 |---|---|
 | A deterministic verification and guardrail engine for AI coding agents. | An LLM wrapper, prompt generator, or code synthesizer. |
 | An MCP (Model Context Protocol) server exposing structured context & tools. | A replacement for compilers, language servers, or native linters. |
@@ -118,7 +118,7 @@ ForgeCore was created to solve these failure modes through three unyielding engi
 
 ## 2. High-Level System Architecture
 
-ForgeCore operates as an out-of-process Model Context Protocol (MCP) server communicating over real `stdio` (JSON-RPC) with the agent's host IDE (e.g., Google Antigravity), complemented by a developer-facing CLI (`forgecore`) for setup, diagnostics, and interactive approvals.
+Sarthi operates as an out-of-process Model Context Protocol (MCP) server communicating over real `stdio` (JSON-RPC) with the agent's host IDE (e.g., Google Antigravity), complemented by a developer-facing CLI (`sarthi`) for setup, diagnostics, and interactive approvals.
 
 ### High-Level System Flowchart
 
@@ -136,14 +136,14 @@ flowchart TD
         TrustManager{"CommandTrustManager<br/>Allowlist & Hashes"}
     end
 
-    subgraph ForgeCoreSystem["ForgeCore Engine"]
-        CLI["ForgeCore CLI (`src/forgecore/cli.py`)"]
-        MCPServer["MCP Server (`src/forgecore/mcp/server.py`)"]
+    subgraph SarthiSystem["Sarthi Engine"]
+        CLI["Sarthi CLI (`src/sarthi/cli.py`)"]
+        MCPServer["MCP Server (`src/sarthi/mcp/server.py`)"]
         
         subgraph IntelligenceLayer["Project Intelligence"]
             StackDetector["StackDetector (`core/stack_detector.py`)"]
             ContextBuilder["ContextBuilder (`core/context.py`)"]
-            Cache[".forgecore/cache/context.md"]
+            Cache[".sarthi/cache/context.md"]
         end
 
         subgraph PolicyEngine["Knowledge & Policy"]
@@ -167,17 +167,17 @@ flowchart TD
     end
 
     subgraph Storage["Persistent Storage"]
-        ProjConfig[".forgecore/project.yaml"]
-        UserApprovals["~/.forgecore/approvals.json"]
+        ProjConfig[".sarthi/project.yaml"]
+        UserApprovals["~/.sarthi/approvals.json"]
         MCPConfig["~/.gemini/antigravity/mcp_config.json"]
         GlobalRule["~/.gemini/antigravity/GEMINI.md"]
     end
 
     %% Human interactions
-    Dev -->|"Runs `forgecore approve`"| TTYCheck
+    Dev -->|"Runs `sarthi approve`"| TTYCheck
     TTYCheck -->|"Passes TTY Check"| TrustManager
     TrustManager -->|"Writes SHA-256 Hash"| UserApprovals
-    Dev -->|"Runs `forgecore init / doctor`"| CLI
+    Dev -->|"Runs `sarthi init / doctor`"| CLI
 
     %% Agent interactions
     IDE -->|"Spawns MCP Server over stdio"| MCPServer
@@ -213,18 +213,18 @@ flowchart TD
 
 ### Core Component Roles & Responsibilities
 
-1. **Host Environment & Agent:** The AI Agent operates within the host IDE (Google Antigravity), executing steps prompted by the user. The agent reads instructions from `GEMINI.md` (which embeds the ForgeCore Core Contract) and discovers ForgeCore tools via the Model Context Protocol.
-2. **MCP Server (`src/forgecore/mcp/server.py`):** Serves as the primary bridge. Exposes six targeted tools (`initialize_project`, `get_project_context`, `get_standards`, `get_workflow`, `get_rule`, `verify_project`), resources (`forgecore://contract`, `forgecore://standards/{layer}`, `forgecore://workflows/{task_type}`), and prompt templates. All logging is routed exclusively to `stderr` to protect `stdout` JSON-RPC transport integrity.
+1. **Host Environment & Agent:** The AI Agent operates within the host IDE (Google Antigravity), executing steps prompted by the user. The agent reads instructions from `GEMINI.md` (which embeds the Sarthi Core Contract) and discovers Sarthi tools via the Model Context Protocol.
+2. **MCP Server (`src/sarthi/mcp/server.py`):** Serves as the primary bridge. Exposes six targeted tools (`initialize_project`, `get_project_context`, `get_standards`, `get_workflow`, `get_rule`, `verify_project`), resources (`sarthi://contract`, `sarthi://standards/{layer}`, `sarthi://workflows/{task_type}`), and prompt templates. All logging is routed exclusively to `stderr` to protect `stdout` JSON-RPC transport integrity.
 3. **Project Intelligence (`StackDetector` & `ContextBuilder`):** Inspects the repository up to a recursion depth of 6, detects language ecosystems, package managers, and test runners, hashes manifest files into a SHA-256 fingerprint, and caches a concise markdown representation of project architecture.
 4. **Knowledge & Policy Engine (`RuleSelector` & `BudgetManager`):** Manages 85 standards across 11 architectural layers. When the agent requests standards for a specific task, `RuleSelector` matches layers and keywords, ranks rules by severity and tier, and `BudgetManager` enforces a strict 3,000-token cap to eliminate context pollution.
 5. **Deterministic Verification Engine (`Verifier`):** Orchestrates static and runtime analysis runners. It detects git-changed files (with a 500-file fallback for non-git workspaces) and executes batched checks with a 60-second wall-clock budget.
-6. **Security & Trust Subsystem (`PathGuard`, `CommandTrustManager`, `security.py`):** Prevents directory traversal, blocks access to secret keys (`.env`, `id_rsa`), validates executables against an allowlist, checks command hashes against `~/.forgecore/approvals.json`, and neutralizes fence breakout tags in untrusted repo content.
+6. **Security & Trust Subsystem (`PathGuard`, `CommandTrustManager`, `security.py`):** Prevents directory traversal, blocks access to secret keys (`.env`, `id_rsa`), validates executables against an allowlist, checks command hashes against `~/.sarthi/approvals.json`, and neutralizes fence breakout tags in untrusted repo content.
 
 ---
 
 ## 3. Low-Level Architecture (The Six Logical Layers)
 
-ForgeCore is designed as a modular, 6-layer decoupled pipeline where higher layers consume lower layers through strict interfaces.
+Sarthi is designed as a modular, 6-layer decoupled pipeline where higher layers consume lower layers through strict interfaces.
 
 ### Layered Architecture Diagram
 
@@ -283,37 +283,37 @@ flowchart LR
 
 #### 1. Integration Layer
 - **Source Files:**
-  - `src/forgecore/cli.py`
-  - `src/forgecore/mcp/server.py`
-  - `src/forgecore/mcp/tools.py`
-  - `src/forgecore/mcp/resources.py`
-  - `src/forgecore/mcp/prompts.py`
-  - `src/forgecore/adapters/antigravity/adapter.py`
+  - `src/sarthi/cli.py`
+  - `src/sarthi/mcp/server.py`
+  - `src/sarthi/mcp/tools.py`
+  - `src/sarthi/mcp/resources.py`
+  - `src/sarthi/mcp/prompts.py`
+  - `src/sarthi/adapters/antigravity/adapter.py`
 - **Interfaces & Responsibilities:**
-  - Exposes the command-line interface (`forgecore init`, `standards`, `verify`, `doctor`, `approve`, `serve`).
+  - Exposes the command-line interface (`sarthi init`, `standards`, `verify`, `doctor`, `approve`, `serve`).
   - Implements the MCP JSON-RPC protocol over `stdio`.
   - Routes server logging strictly to `sys.stderr` via `configure_logging()`.
   - Installs and validates Antigravity IDE configuration files (`mcp_config.json`, `GEMINI.md`).
 - **Dependencies:** Consumes all lower layers via lazy-loading on tool invocation to maximize cold-start speed.
-- **Failure Modes:** Malformed stdio JSON-RPC messages trigger protocol errors; non-interactive execution of `forgecore approve` raises exit code 1.
+- **Failure Modes:** Malformed stdio JSON-RPC messages trigger protocol errors; non-interactive execution of `sarthi approve` raises exit code 1.
 
 #### 2. Project Intelligence Layer
 - **Source Files:**
-  - `src/forgecore/core/stack_detector.py`
-  - `src/forgecore/core/context.py`
-  - `src/forgecore/core/detectors/base.py`
+  - `src/sarthi/core/stack_detector.py`
+  - `src/sarthi/core/context.py`
+  - `src/sarthi/core/detectors/base.py`
 - **Interfaces & Responsibilities:**
   - `StackDetector.detect(root) -> StackProfile`: Recursively walks project root up to depth 6, ignoring noisy directories (`node_modules`, `.venv`, `.git`, `dist`, `target`). Detects manifests (`pyproject.toml`, `package.json`, `pom.xml`, `go.mod`, `Cargo.toml`).
-  - `ContextBuilder.build_context(force) -> tuple[StackProfile, ProjectConfig, int, bool]`: Computes a deterministic SHA-256 fingerprint of all discovered manifest contents. Caches human-readable architecture in `.forgecore/cache/context.md`.
+  - `ContextBuilder.build_context(force) -> tuple[StackProfile, ProjectConfig, int, bool]`: Computes a deterministic SHA-256 fingerprint of all discovered manifest contents. Caches human-readable architecture in `.sarthi/cache/context.md`.
 - **Dependencies:** Depends on Layer 4 (`PathGuard`) to prevent escaping root, and Layer 6 (`ProjectConfig`).
 - **Failure Modes:** Unreadable files or permissions failures fall back gracefully; empty projects default to `suggested_profile: None`.
 
 #### 3. Knowledge & Policy Layer
 - **Source Files:**
-  - `src/forgecore/core/rules.py`
-  - `src/forgecore/core/budget.py`
-  - `src/forgecore/core/workflows.py`
-  - `src/forgecore/core/standards_linter.py`
+  - `src/sarthi/core/rules.py`
+  - `src/sarthi/core/budget.py`
+  - `src/sarthi/core/workflows.py`
+  - `src/sarthi/core/standards_linter.py`
 - **Interfaces & Responsibilities:**
   - `RuleLoader.load_all_rules() -> list[Rule]`: Loads and validates all YAML rules against Pydantic models.
   - `RuleSelector.select_rules(...) -> tuple[list[Rule], bool, str | None]`: Matches rules against active layers, task keywords, and user overrides. Filters by category and severity.
@@ -324,28 +324,28 @@ flowchart LR
 
 #### 4. Security & Isolation Layer
 - **Source Files:**
-  - `src/forgecore/core/pathguard.py`
-  - `src/forgecore/core/security.py`
-  - `src/forgecore/core/verify/trust.py`
+  - `src/sarthi/core/pathguard.py`
+  - `src/sarthi/core/security.py`
+  - `src/sarthi/core/verify/trust.py`
 - **Interfaces & Responsibilities:**
   - `PathGuard.safe_path(target, allow_secret) -> Path`: Resolves symlinks, strictly checks `path.is_relative_to(root)`, and blocks matches against `DEFAULT_SECRET_PATTERNS` (`.env`, `*.pem`, `id_rsa`, `credentials.json`).
   - `fence_untrusted(text) -> str` & `neutralize_fence_tags(text) -> str`: Wraps untrusted project strings in `<untrusted_project_data>`, converting any internal `<untrusted_project_data>` or `</untrusted_project_data>` tags (case-insensitively with arbitrary internal whitespace) to `[untrusted_project_data]` to prevent prompt injection fence escapes.
   - `parse_and_validate_command(cmd, project_root)`: Strips shell metacharacters (`;`, `&`, `|`, `$`, `` ` ``, `\n`), enforces bare executable allowlist, prevents path-based relative calls (`./evil/pytest`), and blocks bare executables residing directly in the project root (hijack protection for `pytest.bat` / `pytest.exe`) while permitting legitimate virtual environments (`.venv/Scripts`, `.venv/bin`, `node_modules/.bin`).
-  - `CommandTrustManager.check_trust(root, commands)`: Verifies that custom or default test execution commands match approved SHA-256 hashes recorded interactively in `~/.forgecore/approvals.json`.
+  - `CommandTrustManager.check_trust(root, commands)`: Verifies that custom or default test execution commands match approved SHA-256 hashes recorded interactively in `~/.sarthi/approvals.json`.
 - **Dependencies:** Layer 6 (`models.py`). Operates as an independent defensive perimeter.
 - **Failure Modes:** Traversal attempts raise `PathTraversalError`; unapproved commands raise `UntrustedCommandError`; shell injection attempts raise `ShellMetacharacterError`.
 
 #### 5. Verification Engine Layer
 - **Source Files:**
-  - `src/forgecore/core/verify/verifier.py`
-  - `src/forgecore/core/verify/runners/base.py`
-  - `src/forgecore/core/verify/runners/secrets.py`
-  - `src/forgecore/core/verify/runners/ruff.py`
-  - `src/forgecore/core/verify/runners/eslint.py`
-  - `src/forgecore/core/verify/runners/semgrep.py`
-  - `src/forgecore/core/verify/runners/tests.py`
-  - `src/forgecore/core/verify/runners/checklist.py`
-  - `src/forgecore/core/verify/reporter.py`
+  - `src/sarthi/core/verify/verifier.py`
+  - `src/sarthi/core/verify/runners/base.py`
+  - `src/sarthi/core/verify/runners/secrets.py`
+  - `src/sarthi/core/verify/runners/ruff.py`
+  - `src/sarthi/core/verify/runners/eslint.py`
+  - `src/sarthi/core/verify/runners/semgrep.py`
+  - `src/sarthi/core/verify/runners/tests.py`
+  - `src/sarthi/core/verify/runners/checklist.py`
+  - `src/sarthi/core/verify/reporter.py`
 - **Interfaces & Responsibilities:**
   - `Verifier.verify(scope, timeout, checks) -> VerifyReport`: Detects target files (via `git diff --name-only HEAD` + untracked porcelain, or 500-file mtime fallback), enforces a 60-second wall-clock deadline, and iterates through runners.
   - `Runner.run(ctx, files) -> list[Finding]`: Protocol implemented by all runners.
@@ -359,12 +359,12 @@ flowchart LR
 
 #### 6. Configuration & Persistence Layer
 - **Source Files:**
-  - `src/forgecore/core/config.py`
-  - `src/forgecore/core/models.py`
+  - `src/sarthi/core/config.py`
+  - `src/sarthi/core/models.py`
 - **Interfaces & Responsibilities:**
   - Defines immutable Pydantic schemas: `Rule`, `StackProfile`, `ProjectConfig`, `Finding`, `VerifyReport`, `RunContext`.
-  - Reads and writes `.forgecore/project.yaml`.
-  - Manages global user configuration at `~/.forgecore/approvals.json`.
+  - Reads and writes `.sarthi/project.yaml`.
+  - Manages global user configuration at `~/.sarthi/approvals.json`.
 - **Dependencies:** Pydantic v2, PyYAML.
 - **Failure Modes:** Corrupt YAML triggers safe defaults or explicit validation errors.
 
@@ -372,7 +372,7 @@ flowchart LR
 
 ## 4. Knowledge Architecture (The 4-Layer Pyramid)
 
-ForgeCore organizes engineering intelligence in a 4-tier pyramid. Broad, immutable rules sit at the apex, progressively narrowing down to stack-specific, deterministically verified constraints at the base.
+Sarthi organizes engineering intelligence in a 4-tier pyramid. Broad, immutable rules sit at the apex, progressively narrowing down to stack-specific, deterministically verified constraints at the base.
 
 ```
                       / \
@@ -394,14 +394,14 @@ ForgeCore organizes engineering intelligence in a 4-tier pyramid. Broad, immutab
 
 Located at `standards/contract.md`, the Core Contract is loaded directly into the MCP Server instructions and injected into `GEMINI.md`. Every agent session is bound to these 16 rules:
 
-1. **Session Start:** Call `forgecore.initialize_project` at the start of every session.
-2. **Workflows:** Follow the plan-implement-verify lifecycle from `forgecore.get_workflow`.
-3. **Retrieve Standards:** Call `forgecore.get_standards` before writing code in any layer.
+1. **Session Start:** Call `sarthi.initialize_project` at the start of every session.
+2. **Workflows:** Follow the plan-implement-verify lifecycle from `sarthi.get_workflow`.
+3. **Retrieve Standards:** Call `sarthi.get_standards` before writing code in any layer.
 4. **No Hardcoded Secrets:** Strictly read credentials from environment variables or vaults.
 5. **Boundary Validation:** Sanitize and validate external inputs with strict schemas (Pydantic, Zod).
 6. **Separation of Concerns:** Keep business logic out of controllers, route handlers, and UI components.
 7. **Test Discipline:** Accompany every behavior change with automated tests. Never delete tests to pass builds.
-8. **Deterministic Verification:** Run `forgecore.verify_project(scope="changed")` before claiming completion.
+8. **Deterministic Verification:** Run `sarthi.verify_project(scope="changed")` before claiming completion.
 9. **Error Handling:** Never swallow exceptions or use empty catch blocks. Log structured errors.
 10. **Secure Database Queries:** Never concatenate user input into queries. Use parameterized queries or ORMs.
 11. **Minimal Surface Area:** Expose only required APIs, types, and exports. Mark internals private.
@@ -452,7 +452,7 @@ since: 0.1.0
 
 #### Layer Breakdown & Verifier Distribution
 
-As validated by `forgecore lint-standards --summary`:
+As validated by `sarthi lint-standards --summary`:
 
 | Layer / Stack | Total Rules | Machine Verifiers | Status in v0.1 |
 |---|---|---|---|
@@ -485,13 +485,13 @@ Rules with `verify.type` bind to automated tools rather than manual prompts:
 
 ## 5. ECC (Everything Claude Code) Integration & Evolution
 
-### Distinction: ForgeCore vs. ECC
+### Distinction: Sarthi vs. ECC
 
 A frequent point of confusion in agent tooling is the difference between *conversational skills/workflows* and *deterministic verification engines*.
 
 ```
 +-----------------------------------------------------------------------------------+
-| FORGECORE: Deterministic Enforcement Engine                                      |
+| SARTHI: Deterministic Enforcement Engine                                      |
 | - Machine-enforced invariant gates (AST linters, Semgrep, regex, test runners).   |
 | - Security sandbox (PathGuard, command trust allowlist, fence neutralization).    |
 | - Strict exit codes, structured VerifyReport JSON, CI/CD parity.                  |
@@ -507,7 +507,7 @@ A frequent point of confusion in agent tooling is the difference between *conver
 +-----------------------------------------------------------------------------------+
 ```
 
-- **ForgeCore** is the **Judge & Policeman**: It does not care which LLM is running or what prompt technique was used. It measures whether the output violates concrete rules, detects secrets, or breaks tests.
+- **Sarthi** is the **Judge & Policeman**: It does not care which LLM is running or what prompt technique was used. It measures whether the output violates concrete rules, detects secrets, or breaks tests.
 - **ECC** is the **Advisor & Co-Pilot**: It supplies cognitive scaffolding, step-by-step agent instructions, and domain-specific conversational templates.
 
 ### Architectural Mapping of Capabilities
@@ -520,7 +520,7 @@ flowchart TD
         ECC_Prompts["ECC Workflows<br/>(Markdown guides)"]
     end
 
-    subgraph ForgeCoreIntegration["ForgeCore Engine Mapping"]
+    subgraph SarthiIntegration["Sarthi Engine Mapping"]
         FC_Contract["Core Contract (`standards/contract.md`)"]
         FC_Workflows["Procedural Workflows (`standards/workflows/*`)"]
         FC_Standards["85 Standards YAMLs (`standards/*`)"]
@@ -530,50 +530,50 @@ flowchart TD
     ECC_Roles -->|"Consults during planning"| FC_Workflows
     ECC_Skills -->|"Aligns advice with"| FC_Standards
     ECC_Prompts -->|"Adheres strictly to"| FC_Contract
-    ForgeCoreIntegration -->|"Validates output via"| FC_Verifiers
+    SarthiIntegration -->|"Validates output via"| FC_Verifiers
 ```
 
-| ECC Component | ForgeCore Analogue / Complement | Integration Relationship |
+| ECC Component | Sarthi Analogue / Complement | Integration Relationship |
 |---|---|---|
-| **ECC Skills** (`skill/`) | **Standards Library** (`standards/`) | ECC skills guide *how* to write features; ForgeCore standards define *what* constraints must never be violated. |
-| **ECC Agents** (`agent/`) | **Client Adapters & Workflows** | ECC agent personas call ForgeCore tools (`get_standards`, `verify_project`) within their task loops. |
-| **ECC Rules** (`rule/`) | **Core Contract** (`contract.md`) | ECC conversational rules defer to ForgeCore's immutable contract. |
+| **ECC Skills** (`skill/`) | **Standards Library** (`standards/`) | ECC skills guide *how* to write features; Sarthi standards define *what* constraints must never be violated. |
+| **ECC Agents** (`agent/`) | **Client Adapters & Workflows** | ECC agent personas call Sarthi tools (`get_standards`, `verify_project`) within their task loops. |
+| **ECC Rules** (`rule/`) | **Core Contract** (`contract.md`) | ECC conversational rules defer to Sarthi's immutable contract. |
 | **ECC Verification** | **Verifier Runners** (`runners/`) | Replaces subjective LLM critique with deterministic Ruff, Semgrep, and Pytest runs. |
 
 ### Proposed Unified Resource Model
 
-To support unified discovery across both Antigravity and Claude Code environments, ForgeCore proposes a canonical resource URI schema:
+To support unified discovery across both Antigravity and Claude Code environments, Sarthi proposes a canonical resource URI schema:
 
 ```
-forgecore://contract                     -> Root governance contract
-forgecore://standards/{layer}            -> Specific layer rules (e.g. fastapi, react)
-forgecore://rules/{rule_id}              -> Granular rule definition with bad/good examples
-forgecore://workflows/{task_type}        -> Task execution lifecycle template
-forgecore://skills/{skill_name}          -> [Proposed ECC Integration] Conversational skill module
+sarthi://contract                     -> Root governance contract
+sarthi://standards/{layer}            -> Specific layer rules (e.g. fastapi, react)
+sarthi://rules/{rule_id}              -> Granular rule definition with bad/good examples
+sarthi://workflows/{task_type}        -> Task execution lifecycle template
+sarthi://skills/{skill_name}          -> [Proposed ECC Integration] Conversational skill module
 ```
 
 ### Conflict Resolution & Precedence Policy
 
-When guidance from an external prompt, conversational skill, or LLM instruction conflicts with ForgeCore:
+When guidance from an external prompt, conversational skill, or LLM instruction conflicts with Sarthi:
 
 ```
 +-----------------------------------------------------------------------------------+
 |                         PRECEDENCE HIERARCHY (HIGHEST TO LOWEST)                  |
 +-----------------------------------------------------------------------------------+
 | 1. Deterministic Verifier Failure (Exit code 1 / Finding at severity >= fail_on)  |
-| 2. ForgeCore Core Contract (Inviolable 16 rules)                                  |
-| 3. Explicit Project Configuration (`.forgecore/project.yaml` rule overrides)      |
-| 4. ForgeCore Standards Library (YAML rules)                                       |
+| 2. Sarthi Core Contract (Inviolable 16 rules)                                  |
+| 3. Explicit Project Configuration (`.sarthi/project.yaml` rule overrides)      |
+| 4. Sarthi Standards Library (YAML rules)                                       |
 | 5. External Conversational Skill / User Prompt Guidance (ECC / Custom Instructions)|
 +-----------------------------------------------------------------------------------+
 ```
-*Rule of Thumb:* If an ECC skill suggests a convenient pattern (e.g., inline mock data) that violates a ForgeCore rule (e.g., `univ-no-hardcoded-secrets`), **the ForgeCore deterministic verifier wins unconditionally.**
+*Rule of Thumb:* If an ECC skill suggests a convenient pattern (e.g., inline mock data) that violates a Sarthi rule (e.g., `univ-no-hardcoded-secrets`), **the Sarthi deterministic verifier wins unconditionally.**
 
 ---
 
 ## 6. Live Antigravity Integration
 
-ForgeCore integrates with Google Antigravity as an official Model Context Protocol (MCP) provider.
+Sarthi integrates with Google Antigravity as an official Model Context Protocol (MCP) provider.
 
 ### Runtime Sequence Diagram
 
@@ -583,15 +583,15 @@ sequenceDiagram
     actor Dev as Developer (User)
     participant IDE as Antigravity IDE
     participant Agent as AI Coding Agent
-    participant MCP as ForgeCore MCP Server
+    participant MCP as Sarthi MCP Server
     participant Intel as Project Intelligence
     participant Policy as Knowledge & Policy
     participant Verifier as Verifier Engine
     participant Trust as CommandTrustManager
 
     %% Session Setup
-    Note over Dev,IDE: One-Time Setup (`forgecore install antigravity`)
-    IDE->>MCP: Launch `forgecore serve` via stdio
+    Note over Dev,IDE: One-Time Setup (`sarthi install antigravity`)
+    IDE->>MCP: Launch `sarthi serve` via stdio
     MCP-->>IDE: Server ready (Instructions: Core Contract)
     
     %% Session Initialization
@@ -639,13 +639,13 @@ sequenceDiagram
 ### The Complete 19-Step Runtime Lifecycle
 
 1. **Host Boot:** Antigravity launches and parses `~/.gemini/antigravity/mcp_config.json`.
-2. **Server Spawn:** Antigravity starts `python -m forgecore.cli serve` over a bidirectional `stdio` pipe.
-3. **Logging Isolation:** ForgeCore runs `configure_logging()`, routing all diagnostic logs to `stderr`.
+2. **Server Spawn:** Antigravity starts `python -m sarthi.cli serve` over a bidirectional `stdio` pipe.
+3. **Logging Isolation:** Sarthi runs `configure_logging()`, routing all diagnostic logs to `stderr`.
 4. **Contract Ingestion:** The MCP Server advertises its capabilities and transmits the 16-point Core Contract as server instructions.
 5. **Session Initiation:** The user assigns a task to the agent in Antigravity chat.
 6. **Project Initialization:** The agent invokes `initialize_project(root=".")`.
 7. **Stack Fingerprinting:** `StackDetector` scans the workspace and `ContextBuilder` hashes manifests into a SHA-256 fingerprint.
-8. **Context Registration:** Active layers (`universal`, `security`, stack-specific layers) are registered and cached in `.forgecore/cache/context.md`.
+8. **Context Registration:** Active layers (`universal`, `security`, stack-specific layers) are registered and cached in `.sarthi/cache/context.md`.
 9. **Workflow Retrieval:** The agent requests procedural steps via `get_workflow(task_type="feature")`.
 10. **Plan Generation:** The agent formulates a step-by-step implementation plan.
 11. **Targeted Standards Query:** The agent calls `get_standards(task=..., layers=...)`.
@@ -667,35 +667,35 @@ sequenceDiagram
 | Edit source & test files | Agent via IDE tools | Yes | No |
 | Run static linters (Ruff, Semgrep, ESLint) | Verifier via MCP tool | Yes | No (allowlisted binaries) |
 | Scan for exposed secrets | Verifier via MCP tool | Yes | No |
-| Execute project test commands (`pytest`, `npm test`) | TestRunner via Verifier | Yes (if approved) | **Yes** (one-time interactive TTY approval via `forgecore approve`) |
+| Execute project test commands (`pytest`, `npm test`) | TestRunner via Verifier | Yes (if approved) | **Yes** (one-time interactive TTY approval via `sarthi approve`) |
 | Add/modify custom verify commands | Developer via config | Yes | **Yes** (invalidates hash; requires re-approval) |
-| Modify global MCP configuration | CLI (`forgecore install`) | Yes | Developer-triggered CLI operation |
+| Modify global MCP configuration | CLI (`sarthi install`) | Yes | Developer-triggered CLI operation |
 
 ### Configuration Injection & Timestamped Backup Strategy
 
-When `forgecore install antigravity` runs:
+When `sarthi install antigravity` runs:
 1. Validates `~/.gemini/antigravity/mcp_config.json` against strict JSON syntax. Refuses to proceed if malformed.
 2. Supports `--dry-run` to preview configuration mutations without touching disk.
 3. If an existing `mcp_config.json` or `GEMINI.md` exists, creates a unique, immutable timestamped backup (e.g., `mcp_config.json.20261103_204512.bak`). Backups are **never overwritten** and **never deleted by uninstall**.
-4. Injects the `forgecore` server definition using `sys.executable` to guarantee matching environment dependencies.
+4. Injects the `sarthi` server definition using `sys.executable` to guarantee matching environment dependencies.
 5. Injects the 16-point Core Contract into `GEMINI.md`.
 
 ---
 
-## 7. Before vs. After ForgeCore: Engineering Guardrails in Action
+## 7. Before vs. After Sarthi: Engineering Guardrails in Action
 
 ### Comparative Workflow Diagram
 
 ```mermaid
 flowchart TD
-    subgraph WithoutForgeCore["Standard Agent (Without ForgeCore)"]
+    subgraph WithoutSarthi["Standard Agent (Without Sarthi)"]
         W_Prompt["User Prompt: 'Add search endpoint'"] --> W_Gen["LLM Generates Code Directly"]
         W_Gen --> W_Hallucinate["LLM Hallucinates Compliance:<br/>'I used parameterized SQL and handled errors.'"]
         W_Hallucinate --> W_Commit["Unchecked Code Merged to Main"]
         W_Commit --> W_Failure["PROD INCIDENT:<br/>SQL Injection, Secret Leak, Flaky Tests"]
     end
 
-    subgraph WithForgeCore["ForgeCore-Guarded Agent"]
+    subgraph WithSarthi["Sarthi-Guarded Agent"]
         F_Prompt["User Prompt: 'Add search endpoint'"] --> F_Init["1. Initialize Context & Layers"]
         F_Init --> F_Rules["2. Retrieve Budgeted Standards"]
         F_Rules --> F_Draft["3. Draft Code & Accompanying Tests"]
@@ -737,8 +737,8 @@ def search_users(email: str):  # VIOLATION: Missing boundary validation regex
     return {"user": user, "token": token}
 ```
 
-#### 2. How ForgeCore Intercepts and Blocks the Violations
-During Phase 6, the agent calls `forgecore.verify_project(scope="changed")`. The deterministic verification engine intercepts the code and returns the following `VerifyReport`:
+#### 2. How Sarthi Intercepts and Blocks the Violations
+During Phase 6, the agent calls `sarthi.verify_project(scope="changed")`. The deterministic verification engine intercepts the code and returns the following `VerifyReport`:
 
 ```json
 {
@@ -783,16 +783,16 @@ During Phase 6, the agent calls `forgecore.verify_project(scope="changed")`. The
 ```
 
 #### 3. The Remediated, Clean Implementation
-Bound by the `VerifyReport`, the agent refactors the code to conform to ForgeCore standards:
+Bound by the `VerifyReport`, the agent refactors the code to conform to Sarthi standards:
 
 ```python
-# src/api/search.py (FORGECORE-VERIFIED)
+# src/api/search.py (SARTHI-VERIFIED)
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import EmailStr
 import sqlite3
 import os
 import jwt
-from forgecore.dependencies import get_db_cursor
+from sarthi.dependencies import get_db_cursor
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -820,7 +820,7 @@ def search_users(
     token = jwt.encode({"sub": str(user["id"])}, jwt_secret, algorithm="HS256")
     return {"id": user["id"], "email": user["email"], "status": user["status"], "token": token}
 ```
-Re-running `forgecore.verify_project(scope="changed")` now returns `"status": "passed"` with zero blocking findings.
+Re-running `sarthi.verify_project(scope="changed")` now returns `"status": "passed"` with zero blocking findings.
 
 ---
 
@@ -845,8 +845,8 @@ flowchart TD
 ### Detailed Phase Operations
 
 #### Phase 1: Session Initialization & Cold Start
-- The IDE spawns `python -m forgecore.cli serve`.
-- `configure_logging()` sets the root logger to `sys.stderr` (supporting `FORGECORE_DEBUG=1`).
+- The IDE spawns `python -m sarthi.cli serve`.
+- `configure_logging()` sets the root logger to `sys.stderr` (supporting `SARTHI_DEBUG=1`).
 - Heavy modules (`ContextBuilder`, `StackDetector`, `Verifier`, `RuleLoader`) are deferred to lazy imports, achieving a cold startup response time of **1409.2 ms** on Windows.
 - The 16-point Core Contract is transmitted in the initialization response.
 
@@ -858,8 +858,8 @@ flowchart TD
   - Java: `pom.xml`, `build.gradle`, `build.gradle.kts`
   - Go: `go.mod`
   - Rust: `Cargo.toml`
-- Computes SHA-256 hash of all manifest content. If unchanged, returns cached context from `.forgecore/cache/context.md`.
-- Scaffolds `.forgecore/project.yaml` if not present.
+- Computes SHA-256 hash of all manifest content. If unchanged, returns cached context from `.sarthi/cache/context.md`.
+- Scaffolds `.sarthi/project.yaml` if not present.
 
 #### Phase 3: Context & Policy Synthesis
 - The agent calls `get_standards(task="...", layers=[...])`.
@@ -875,7 +875,7 @@ flowchart TD
 #### Phase 5: Pre-Verification & Trust Validation
 - The agent initiates verification via `verify_project(scope="changed")`.
 - `PathGuard` validates that the project root is not escaped and blocks attempts to inspect sensitive credential files.
-- `CommandTrustManager` verifies that any project test commands specified in `.forgecore/project.yaml` or detected by default have been approved by the user via interactive TTY.
+- `CommandTrustManager` verifies that any project test commands specified in `.sarthi/project.yaml` or detected by default have been approved by the user via interactive TTY.
 
 #### Phase 6: Deterministic Multi-Runner Verification
 - `Verifier` resolves changed files via `git diff --name-only HEAD` plus untracked files (capped at 500 files if not in a git repository).
@@ -896,7 +896,7 @@ flowchart TD
 
 ---
 
-## 9. How ForgeCore Improves Code Quality Across 8 Dimensions
+## 9. How Sarthi Improves Code Quality Across 8 Dimensions
 
 | Engineering Dimension | Applicable Standards | Verifier Type | What It Catches | Production Impact |
 |---|---|---|---|---|
@@ -913,13 +913,13 @@ flowchart TD
 
 ## 10. Stack-Agnostic Architecture & Extensibility
 
-ForgeCore is not tied to a single language. Its modular architecture cleanly decouples the verification orchestrator from stack-specific detectors, standards, and runners.
+Sarthi is not tied to a single language. Its modular architecture cleanly decouples the verification orchestrator from stack-specific detectors, standards, and runners.
 
 ### Stack Adapter Model
 
 ```mermaid
 flowchart LR
-    subgraph CoreEngine["ForgeCore Core Engine"]
+    subgraph CoreEngine["Sarthi Core Engine"]
         Orchestrator["Verifier Orchestrator"]
         Trust["CommandTrustManager"]
         Budget["BudgetManager"]
@@ -945,7 +945,7 @@ flowchart LR
 Adding support for a new technology stack (e.g., Go) requires four straightforward steps without altering the core verification pipeline:
 
 #### Step 1: Add Stack Profile & Manifest Detection
-Update `src/forgecore/core/stack_detector.py` to identify the new ecosystem:
+Update `src/sarthi/core/stack_detector.py` to identify the new ecosystem:
 ```python
 # In StackDetector._detect_manifests
 if (root / "go.mod").is_file():
@@ -972,7 +972,7 @@ rule: |
 ```
 
 #### Step 3: Implement or Bind a Runner
-Add an execution runner or bind existing tools in `src/forgecore/core/verify/runners/`:
+Add an execution runner or bind existing tools in `src/sarthi/core/verify/runners/`:
 ```python
 class GolangCILintRunner:
     @property
@@ -988,7 +988,7 @@ class GolangCILintRunner:
 ```
 
 #### Step 4: Add Default Test Command & Allowlist
-Register the executable in `ALLOWED_BARE_EXECUTABLES` in `src/forgecore/core/verify/trust.py` (`"go"`), and map default test invocation (`["go", "test", "./..."]`).
+Register the executable in `ALLOWED_BARE_EXECUTABLES` in `src/sarthi/core/verify/trust.py` (`"go"`), and map default test invocation (`["go", "test", "./..."]`).
 
 ---
 
@@ -999,18 +999,18 @@ Register the executable in `ALLOWED_BARE_EXECUTABLES` in `src/forgecore/core/ver
 ```mermaid
 flowchart TD
     subgraph GlobalUser["User Home Directory (~/)"]
-        GlobalApprovals["~/.forgecore/approvals.json<br/>(Command SHA-256 Hashes)"]
+        GlobalApprovals["~/.sarthi/approvals.json<br/>(Command SHA-256 Hashes)"]
         GlobalMCPConfig["~/.gemini/antigravity/mcp_config.json<br/>(Server launch config)"]
         GlobalRuleFile["~/.gemini/antigravity/GEMINI.md<br/>(Core Contract Injection)"]
     end
 
     subgraph ProjectWorkspace["Project Workspace Directory"]
-        ProjConfig[".forgecore/project.yaml<br/>(Layers, Overrides, Custom Commands)"]
-        CacheFile[".forgecore/cache/context.md<br/>(Fingerprinted Project Architecture)"]
+        ProjConfig[".sarthi/project.yaml<br/>(Layers, Overrides, Custom Commands)"]
+        CacheFile[".sarthi/cache/context.md<br/>(Fingerprinted Project Architecture)"]
         SrcFiles["Source Files & Tests"]
     end
 
-    subgraph EngineRuntime["ForgeCore Runtime State"]
+    subgraph EngineRuntime["Sarthi Runtime State"]
         ContextState["ContextBuilder<br/>(Calculates Manifest Hash)"]
         TrustState["CommandTrustManager<br/>(Checks TTY & Hashes)"]
         RunContextState["RunContext<br/>(Active layers, deadline, diff)"]
@@ -1026,20 +1026,20 @@ flowchart TD
 
 ### Artifact Lifecycles & State Transitions
 
-#### 1. `.forgecore/project.yaml`
-- **Location:** `<project_root>/.forgecore/project.yaml`
-- **Created:** By `forgecore init` or automatically during `initialize_project`.
+#### 1. `.sarthi/project.yaml`
+- **Location:** `<project_root>/.sarthi/project.yaml`
+- **Created:** By `sarthi init` or automatically during `initialize_project`.
 - **Purpose:** Declares active profile, explicit layer additions/removals, rule severity overrides, and custom verification commands.
 - **Security Rule:** Project-derived text from `project.yaml` (such as override reasons) is treated as untrusted and wrapped in `<untrusted_project_data>`.
 
-#### 2. `.forgecore/cache/context.md`
-- **Location:** `<project_root>/.forgecore/cache/context.md`
+#### 2. `.sarthi/cache/context.md`
+- **Location:** `<project_root>/.sarthi/cache/context.md`
 - **Created:** By `ContextBuilder.build_context()`.
 - **Lifecycle:** Rebuilt whenever the SHA-256 hash of project manifests changes or when `--force` is supplied. Stores human-readable project summaries to eliminate redundant stack scans.
 
-#### 3. `~/.forgecore/approvals.json`
+#### 3. `~/.sarthi/approvals.json`
 - **Location:** User home directory (completely outside project root to prevent repository-level tampering).
-- **Created & Updated:** Strictly by `forgecore approve` running on an interactive TTY.
+- **Created & Updated:** Strictly by `sarthi approve` running on an interactive TTY.
 - **Structure:**
   ```json
   {
@@ -1056,26 +1056,26 @@ flowchart TD
 
 #### 4. `mcp_config.json` & `GEMINI.md`
 - **Location:** `~/.gemini/antigravity/`
-- **Managed By:** `forgecore install antigravity` and `forgecore uninstall antigravity`.
+- **Managed By:** `sarthi install antigravity` and `sarthi uninstall antigravity`.
 - **Integrity:** Backed up to unique timestamped `.bak` files prior to mutation. Restored cleanly upon uninstallation.
 
 ---
 
 ## 12. Security Architecture & Threat Model
 
-ForgeCore enforces a defense-in-depth threat model designed specifically for autonomous AI agents operating in local filesystems.
+Sarthi enforces a defense-in-depth threat model designed specifically for autonomous AI agents operating in local filesystems.
 
 ### Threat Matrix & Mitigations
 
-| Threat Vector | Attack Mechanism | ForgeCore Defensive Mitigation | Implementation File |
+| Threat Vector | Attack Mechanism | Sarthi Defensive Mitigation | Implementation File |
 |---|---|---|---|
 | **Path Traversal & Jailbreaks** | Agent supplies `../../etc/passwd` or resolves external symlinks. | `PathGuard.safe_path()` validates `target.resolve().is_relative_to(root)` and blocks access. | `core/pathguard.py` |
 | **Credential & Secret Exfiltration** | Agent reads `.env`, `id_rsa`, `*.pem`, or `credentials.json`. | Denylist matching via `DEFAULT_SECRET_PATTERNS`. Attempts raise `SecretFileAccessError`. | `core/pathguard.py` |
 | **Project-Root Executable Hijacking** | Repo contains malicious `pytest.bat` or `pytest.exe` in project root to hijack allowlisted names. | `_is_disallowed_project_executable()` rejects bare repo-root binaries while permitting `.venv/Scripts`, `.venv/bin`, and `node_modules/.bin`. | `core/verify/trust.py` |
 | **Relative Executable Traversal** | Agent invokes `./evil/pytest` or `bin/pytest`. | `parse_and_validate_command()` forbids `/` or `\` in executable names (only bare names or `./gradlew` allowed). | `core/verify/trust.py` |
 | **Arbitrary Command Execution** | Agent introduces shell chaining: `pytest; rm -rf /` or `npm test && curl evil.com`. | `SHELL_METACHARACTERS` detection strictly rejects `;`, `&`, `|`, `$`, `` ` ``, `\n`, `(`, `)`. | `core/verify/trust.py` |
-| **Automated Agent Self-Approval** | Agent attempts to invoke `forgecore approve` via subshell or pipe to approve malicious commands. | `_is_interactive_tty()` verifies `sys.stdin.isatty()`. Non-interactive executions fail with exit code 1. | `cli.py` |
-| **Malicious Test Suite Execution** | Allowlisted test runners (`pytest`, `npm`) execute arbitrary repo code by design. | Test execution requires explicit user approval stored in `~/.forgecore/approvals.json` keyed by SHA-256 hash. | `core/verify/trust.py` |
+| **Automated Agent Self-Approval** | Agent attempts to invoke `sarthi approve` via subshell or pipe to approve malicious commands. | `_is_interactive_tty()` verifies `sys.stdin.isatty()`. Non-interactive executions fail with exit code 1. | `cli.py` |
+| **Malicious Test Suite Execution** | Allowlisted test runners (`pytest`, `npm`) execute arbitrary repo code by design. | Test execution requires explicit user approval stored in `~/.sarthi/approvals.json` keyed by SHA-256 hash. | `core/verify/trust.py` |
 | **Prompt Injection via Manifests** | Package names or descriptions close `<untrusted_project_data>` tag and inject LLM instructions. | `neutralize_fence_tags()` uses case-insensitive, whitespace-tolerant regex to neutralize tags to `[untrusted_project_data]`. | `core/security.py` |
 | **Untrusted Output Leakage** | Project-derived text reaches MCP output outside a security fence. | All project names, commands, override reasons, and file outputs are strictly routed through `fence_untrusted()`. | `mcp/tools.py` |
 
@@ -1087,18 +1087,18 @@ Allowlisted test binaries (`pytest`, `npm test`, `mvn test`) execute arbitrary r
 sequenceDiagram
     actor Attacker as Malicious Script / Agent
     actor Dev as Real Developer (Interactive Terminal)
-    participant CLI as ForgeCore CLI (`cli.py`)
+    participant CLI as Sarthi CLI (`cli.py`)
     participant Trust as CommandTrustManager
-    participant Storage as ~/.forgecore/approvals.json
+    participant Storage as ~/.sarthi/approvals.json
 
     %% Automated Attack Attempt
-    Attacker->>CLI: echo "y" | forgecore approve
+    Attacker->>CLI: echo "y" | sarthi approve
     CLI->>CLI: Verify sys.stdin.isatty()
     Note over CLI: sys.stdin is a PIPE (not a TTY)
     CLI-->>Attacker: ERROR: Interactive terminal (TTY) required.<br/>Non-interactive approval refused. (Exit 1)
 
     %% Legitimate Approval
-    Dev->>CLI: forgecore approve
+    Dev->>CLI: sarthi approve
     CLI->>CLI: Verify sys.stdin.isatty() -> True (TTY)
     CLI->>Dev: Display project root, commands, and warning prompt
     Dev->>CLI: Explicit confirmation ('y')
@@ -1110,7 +1110,7 @@ sequenceDiagram
 
 ### Fencing & Tag Neutralization Mechanics
 
-To prevent indirect prompt injection from repository content, ForgeCore wraps all project-derived strings in XML boundary tags:
+To prevent indirect prompt injection from repository content, Sarthi wraps all project-derived strings in XML boundary tags:
 
 ```python
 # Raw untrusted input from malicious package.json
@@ -1129,7 +1129,7 @@ Because the closing tag is neutralized to `[/untrusted_project_data]`, the host 
 
 ## 13. Failure Handling & Degraded Operation
 
-ForgeCore is built to fail safely and provide transparent degradation rather than crashing or hanging the agent.
+Sarthi is built to fail safely and provide transparent degradation rather than crashing or hanging the agent.
 
 ### Transparent Degradation Matrix
 
@@ -1137,7 +1137,7 @@ ForgeCore is built to fail safely and provide transparent degradation rather tha
 |---|---|---|---|
 | **Missing Optional Tool** (e.g. Semgrep on Windows) | `SemgrepRunner.available()` returns `False` | Runner is skipped; informational warning added to report. | Report status remains `passed` if other required checks pass. |
 | **Missing Required Tool** (e.g. Ruff on Python project) | `RuffRunner.available()` returns `False` | Runner added to `skipped` checks with `required: True`. | Report status degraded to **`incomplete`**. |
-| **Unapproved Test Command** | `CommandTrustManager.check_trust()` returns `False` | `TestRunner` skipped with warning and `forgecore approve` hint. | Report status degraded to **`incomplete`**. |
+| **Unapproved Test Command** | `CommandTrustManager.check_trust()` returns `False` | `TestRunner` skipped with warning and `sarthi approve` hint. | Report status degraded to **`incomplete`**. |
 | **Wall-Clock Budget Expiry** (60s default) | Deadline exceeded during runner loop | Halts further runner execution; packages partial results. | Report status marked **`incomplete`** with timeout warning. |
 | **Large Workspace Outside Git** (>500 files) | Candidate files exceed 500 in non-git directory | Verification capped at 500 newest files by mtime. | Report flagged as capped; non-blocking notice. |
 | **OS Command-Line Buffer Overflow** | Target file list exceeds OS argv limits | Files batched into 100-file chunks. Failed batches flagged. | Failed batches marked as **`incomplete`** findings. |
@@ -1165,7 +1165,7 @@ stateDiagram-v2
 
 ## 14. Performance & Scalability
 
-AI agent responsiveness directly depends on verification latency. ForgeCore implements strict performance engineering to ensure minimal overhead.
+AI agent responsiveness directly depends on verification latency. Sarthi implements strict performance engineering to ensure minimal overhead.
 
 ### Key Performance Optimizations
 
@@ -1181,17 +1181,17 @@ The following verifiable metrics were reproduced and measured on local test suit
 
 ```
 +-----------------------------------------------------------------------------------+
-|                        FORGECORE PERFORMANCE BENCHMARK RESULTS                    |
+|                        SARTHI PERFORMANCE BENCHMARK RESULTS                    |
 +-----------------------------------------------------------------------------------+
 | 1. MCP Cold Start Latency (Windows x64):                                          |
 |    - Before lazy loading optimization:  1,650.1 ms                                |
 |    - After lazy loading optimization:   1,409.2 ms (15% reduction)                |
 +-----------------------------------------------------------------------------------+
 | 2. Synthetic 20,000-File Repository Benchmark:                                    |
-|    - `forgecore init` (full tree scan):                34.82 s                    |
-|    - `forgecore verify` (git diff scope):               4.82 s                    |
-|    - `forgecore verify` (non-git fallback, 500 cap):   57.63 s                    |
-|    - `forgecore verify --all` (graceful 60s timeout):  64.73 s (incomplete status)|
+|    - `sarthi init` (full tree scan):                34.82 s                    |
+|    - `sarthi verify` (git diff scope):               4.82 s                    |
+|    - `sarthi verify` (non-git fallback, 500 cap):   57.63 s                    |
+|    - `sarthi verify --all` (graceful 60s timeout):  64.73 s (incomplete status)|
 +-----------------------------------------------------------------------------------+
 | 3. stdio Transport Reliability:                                                   |
 |    - 20-run integration loop (tests/integration/test_stdio_transport.py):         |
@@ -1211,8 +1211,8 @@ The following verifiable metrics were reproduced and measured on local test suit
 - **Core Contract:** [`standards/contract.md`](standards/contract.md)
 - **Workflows:** [`standards/workflows/`](standards/workflows/)
 - **Standards Library:** [`standards/`](standards/)
-- **CLI Entry Point:** [`src/forgecore/cli.py`](src/forgecore/cli.py)
-- **MCP Server:** [`src/forgecore/mcp/server.py`](src/forgecore/mcp/server.py)
-- **Verification Engine:** [`src/forgecore/core/verify/verifier.py`](src/forgecore/core/verify/verifier.py)
-- **Security & Trust Subsystem:** [`src/forgecore/core/verify/trust.py`](src/forgecore/core/verify/trust.py)
+- **CLI Entry Point:** [`src/sarthi/cli.py`](src/sarthi/cli.py)
+- **MCP Server:** [`src/sarthi/mcp/server.py`](src/sarthi/mcp/server.py)
+- **Verification Engine:** [`src/sarthi/core/verify/verifier.py`](src/sarthi/core/verify/verifier.py)
+- **Security & Trust Subsystem:** [`src/sarthi/core/verify/trust.py`](src/sarthi/core/verify/trust.py)
 

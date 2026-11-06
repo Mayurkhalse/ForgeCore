@@ -1,2 +1,2 @@
-"""Test package for ForgeCore / Sarthi."""
+"""Test package for Sarthi / Sarthi."""
 

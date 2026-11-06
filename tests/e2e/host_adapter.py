@@ -11,9 +11,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from forgecore.core.verify.trust import CommandTrustManager
-from forgecore.core.verify.verifier import Verifier
-from forgecore.mcp.tools import MCPToolHandlers
+from sarthi.core.verify.trust import CommandTrustManager
+from sarthi.core.verify.verifier import Verifier
+from sarthi.mcp.tools import MCPToolHandlers
 
 
 @dataclass

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from forgecore.core.resources.lifecycle import ECCLifecycleManager
+from sarthi.core.resources.lifecycle import ECCLifecycleManager
 
 
 def test_ecc_acquisition_valid_snapshot():
@@ -90,7 +90,7 @@ def test_ecc_acquisition_traceability_metrics():
 
 def test_ecc_lifecycle_local_customization_preservation(tmp_path: Path):
     """Verifies that project-level local custom rules are preserved across lifecycle management."""
-    fc_rules = tmp_path / ".forgecore" / "rules"
+    fc_rules = tmp_path / ".sarthi" / "rules"
     fc_rules.mkdir(parents=True)
     (fc_rules / "custom_auth.yaml").write_text("id: custom-auth\ntitle: Custom Auth\nlayers: [security]", encoding="utf-8")
 

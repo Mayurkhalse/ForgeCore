@@ -1,17 +1,17 @@
-# ForgeCore
+# Sarthi
 
 > **Production engineering standards for AI coding agents.**
 > Connect once. Your agent plans, writes and verifies code against real engineering standards, from the first line.
 
 **Status:** pre-alpha, design phase (v0.1 in progress) · **License:** MIT · **Python:** 3.11+ · **First-class client:** Google Antigravity · **Others:** via MCP (Cursor, Claude Code, VS Code, Codex) in later releases
 
-> ForgeCore is a working name. Check GitHub, PyPI and trademark availability before publishing.
+> Sarthi is a working name. Check GitHub, PyPI and trademark availability before publishing.
 
 ---
 
 ## Table of contents
 
-1. [What ForgeCore is (and is not)](#1-what-forgecore-is-and-is-not)
+1. [What Sarthi is (and is not)](#1-what-sarthi-is-and-is-not)
 2. [The core thesis](#2-the-core-thesis)
 3. [How "automatic" actually works](#3-how-automatic-actually-works)
 4. [System architecture](#4-system-architecture)
@@ -32,19 +32,19 @@
 
 ---
 
-## 1. What ForgeCore is (and is not)
+## 1. What Sarthi is (and is not)
 
-**ForgeCore is** a local-first system that makes AI coding agents generate production-grade code by default. It does this by:
+**Sarthi is** a local-first system that makes AI coding agents generate production-grade code by default. It does this by:
 
 1. **Detecting** your project's stack and conventions.
 2. **Delivering** the right engineering standards to the agent at the right time, within a strict context budget.
 3. **Guiding** the agent through a plan, implement, verify workflow.
 4. **Verifying** the generated code with deterministic tools (Ruff, Semgrep, linters, tests) and feeding failures back to the agent.
 
-**ForgeCore is not:**
+**Sarthi is not:**
 
 - A code-review product (like CodeRabbit). Verification exists to close the generation loop, not to comment on pull requests.
-- A coding agent. The IDE's agent writes code. ForgeCore supplies the engineering discipline.
+- A coding agent. The IDE's agent writes code. Sarthi supplies the engineering discipline.
 - A prompt collection. Standards are structured, versioned, selectable and, where possible, machine-checkable.
 - A hosted service. Everything runs locally over stdio. No API keys, no cloud.
 
@@ -60,15 +60,15 @@ Agents write demo-quality code by default because nothing forces production conc
 | **On-demand standards** | Detailed, stack-specific guidance retrieved for the current task | Better inputs, no guarantee |
 | **Deterministic verification** | Linters, Semgrep rules and tests run on the output; failures go back to the agent | **The only real guarantee** |
 
-ForgeCore's bet: **the combination of a small always-on core, task-specific retrieval and a mandatory verify loop beats either prompts alone or review after the fact.** This is a hypothesis, and [Section 14](#14-testing-and-evaluation) defines how we test it publicly.
+Sarthi's bet: **the combination of a small always-on core, task-specific retrieval and a mandatory verify loop beats either prompts alone or review after the fact.** This is a hypothesis, and [Section 14](#14-testing-and-evaluation) defines how we test it publicly.
 
-Why MCP and not just rule files? Rule files are static. MCP lets ForgeCore **detect the stack dynamically**, **load only relevant rules** (a React task never receives Spring Boot rules), **run verification tools**, and keep one source of truth across IDEs.
+Why MCP and not just rule files? Rule files are static. MCP lets Sarthi **detect the stack dynamically**, **load only relevant rules** (a React task never receives Spring Boot rules), **run verification tools**, and keep one source of truth across IDEs.
 
 ---
 
 ## 3. How "automatic" actually works
 
-The goal is "set up once in Antigravity, works forever." An MCP server alone cannot inject itself into every model request: the client decides when tools are called. ForgeCore therefore uses **three delivery channels**, all installed by one command (`forgecore install antigravity`):
+The goal is "set up once in Antigravity, works forever." An MCP server alone cannot inject itself into every model request: the client decides when tools are called. Sarthi therefore uses **three delivery channels**, all installed by one command (`sarthi install antigravity`):
 
 | Channel | Mechanism | Role |
 |---|---|---|
@@ -88,15 +88,15 @@ The goal is "set up once in Antigravity, works forever." An MCP server alone can
 A fixed block of about 20 rules, always loaded, written as short imperatives. Example shape:
 
 ```
-FORGECORE CORE CONTRACT v1
-1. At session start, call forgecore.initialize_project (once per session).
-2. Before non-trivial work, call forgecore.get_workflow(task_type) and follow it.
-3. Before writing code in a layer, call forgecore.get_standards(task, layers).
+SARTHI CORE CONTRACT v1
+1. At session start, call sarthi.initialize_project (once per session).
+2. Before non-trivial work, call sarthi.get_workflow(task_type) and follow it.
+3. Before writing code in a layer, call sarthi.get_standards(task, layers).
 4. Never hardcode secrets; read configuration from environment.
 5. Validate all external input at the boundary.
 6. Keep business logic out of controllers/route handlers/components.
 7. Every behavior change ships with tests.
-8. Before declaring done, call forgecore.verify_project and fix all failures at severity >= high.
+8. Before declaring done, call sarthi.verify_project and fix all failures at severity >= high.
 ...
 ```
 
@@ -121,7 +121,7 @@ The Core Contract is hard-capped by a **context budget** ([Section 7.4](#74-cont
                 │ calls                            │ calls
                 ▼                                  ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  FORGECORE CORE  (pure Python, no MCP or IDE imports)         │
+│  SARTHI CORE  (pure Python, no MCP or IDE imports)         │
 │                                                              │
 │  StackDetector   ContextBuilder   RuleSelector               │
 │  WorkflowEngine  BudgetManager    Verifier (+ runners)       │
@@ -137,7 +137,7 @@ The Core Contract is hard-capped by a **context budget** ([Section 7.4](#74-cont
 └───────────────────────────────┘   └──────────────────────────┘
 ```
 
-**Rule of the architecture:** the MCP layer and the CLI are both thin wrappers over `forgecore.core`. If you delete the MCP layer, `forgecore verify .` must still work.
+**Rule of the architecture:** the MCP layer and the CLI are both thin wrappers over `sarthi.core`. If you delete the MCP layer, `sarthi verify .` must still work.
 
 ---
 
@@ -146,7 +146,7 @@ The Core Contract is hard-capped by a **context budget** ([Section 7.4](#74-cont
 1. **Standards are data, not code.** Contributors add a YAML file, not Python.
 2. **Verifiable beats aspirational.** Every rule declares how it is verified (a Semgrep rule, a lint rule, a test pattern or an explicit checklist item). Rules with no verifier are tagged `guidance` and carry lower weight.
 3. **Small context, high adherence.** Budget the tokens. Retrieve, don't dump.
-4. **Deterministic core.** No LLM calls inside ForgeCore. Same input gives the same output.
+4. **Deterministic core.** No LLM calls inside Sarthi. Same input gives the same output.
 5. **Read-only by default.** Analysis never writes. Command execution is allowlisted, bounded to the project root and time-limited.
 6. **Client-neutral core, client-specific adapters.**
 7. **Explainable.** Every rule delivered or violated has an ID, rationale and example.
@@ -194,7 +194,7 @@ Covering five stacks in v0.1 is ambitious, so depth is explicit and honest:
 
 #### Layer Quality & Stability Status in v0.1
 
-*(Dynamically generated via `python scripts/count_rules.py` and validated by `forgecore lint-standards --summary`)*
+*(Dynamically generated via `python scripts/count_rules.py` and validated by `sarthi lint-standards --summary`)*
 
 | Layer / Stack | Total Rules | Machine Verifiers | Status in v0.1 |
 |---|---|---|---|
@@ -244,7 +244,7 @@ Covering five stacks in v0.1 is ambitious, so depth is explicit and honest:
   since: 0.1.0
 ```
 
-Validated by Pydantic at load time. Invalid rules fail `forgecore lint-standards` (and CI).
+Validated by Pydantic at load time. Invalid rules fail `sarthi lint-standards` (and CI).
 
 ### 6.4 Workflows
 
@@ -271,7 +271,7 @@ Summarize what changed, what was verified, what remains.
 
 ## 7. Low-level design
 
-All modules live in `src/forgecore/core/` and import nothing from `forgecore.mcp` or `forgecore.adapters`.
+All modules live in `src/sarthi/core/` and import nothing from `sarthi.mcp` or `sarthi.adapters`.
 
 ### 7.1 StackDetector
 
@@ -300,14 +300,14 @@ class StackProfile(BaseModel):
 | spring-boot | `spring-boot-starter` in `pom.xml`/`build.gradle` |
 | python-ml | `torch`, `tensorflow`, `scikit-learn`, notebooks, `mlflow` |
 
-Rules: monorepo-aware (scan up to depth N, skip `node_modules`, `.venv`, `.git`, build dirs), output includes **evidence** so the agent and user can see why. Low confidence (< 0.6) triggers a "confirm with user" flag instead of guessing. User override in `.forgecore/project.yaml` always wins.
+Rules: monorepo-aware (scan up to depth N, skip `node_modules`, `.venv`, `.git`, build dirs), output includes **evidence** so the agent and user can see why. Low confidence (< 0.6) triggers a "confirm with user" flag instead of guessing. User override in `.sarthi/project.yaml` always wins.
 
 ### 7.2 ConfigLoader
 
-Reads `.forgecore/project.yaml`, merged over defaults.
+Reads `.sarthi/project.yaml`, merged over defaults.
 
 ```yaml
-# .forgecore/project.yaml
+# .sarthi/project.yaml
 version: 1
 project:
   name: my-app
@@ -331,7 +331,7 @@ rules:
       reason: "Legacy module, migrating in Q3"
 ```
 
-Note: `permissions` is deliberately **not** a ForgeCore setting. The IDE owns permissions; ForgeCore only bounds its own execution.
+Note: `permissions` is deliberately **not** a Sarthi setting. The IDE owns permissions; Sarthi only bounds its own execution.
 
 ### 7.3 RuleSelector
 
@@ -360,10 +360,10 @@ Over-budget results are truncated by rank and include a `truncated: true` field 
 
 ### 7.5 ContextBuilder and persistence
 
-Writes derived state to `.forgecore/` (git-ignored except `project.yaml`):
+Writes derived state to `.sarthi/` (git-ignored except `project.yaml`):
 
 ```
-.forgecore/
+.sarthi/
 ├── project.yaml          # user-owned, committed
 └── cache/
     ├── stack.json        # last detection result
@@ -413,10 +413,10 @@ All tools: `root` is validated by PathGuard; outputs are JSON-serializable Pydan
 
 | URI | Content |
 |---|---|
-| `forgecore://contract` | The Core Contract |
-| `forgecore://standards/{layer}` | All rules for a layer |
-| `forgecore://workflows/{task_type}` | Workflow template |
-| `forgecore://project/context` | Current project context |
+| `sarthi://contract` | The Core Contract |
+| `sarthi://standards/{layer}` | All rules for a layer |
+| `sarthi://workflows/{task_type}` | Workflow template |
+| `sarthi://project/context` | Current project context |
 
 ### 8.3 Prompts
 
@@ -424,7 +424,7 @@ Reusable prompt templates (`new-feature`, `fix-bug`) that wrap the workflow, so 
 
 ### 8.4 Prompt-injection hygiene
 
-ForgeCore returns content derived from project files (e.g., project names, file paths, rule override reasons, finding messages). Output is **data, not instructions**:
+Sarthi returns content derived from project files (e.g., project names, file paths, rule override reasons, finding messages). Output is **data, not instructions**:
 - Project-sourced strings are fenced with `<untrusted_project_data>...</untrusted_project_data>`.
 - Any untrusted strings containing attempts to break out of fences (such as closing tag variants `</untrusted_project_data>`) have those sequences neutralized case-insensitively and whitespace-tolerantly (`[untrusted_project_data tag neutralized]`).
 - Project text is excluded from trusted MCP fields.
@@ -433,7 +433,7 @@ ForgeCore returns content derived from project files (e.g., project names, file 
 
 ## 9. The verify loop
 
-This is the enforcement backbone. The agent writes code, ForgeCore verifies, failures flow back, the agent fixes, and the cycle repeats until clean.
+This is the enforcement backbone. The agent writes code, Sarthi verifies, failures flow back, the agent fixes, and the cycle repeats until clean.
 
 ```
 agent writes code
@@ -509,7 +509,7 @@ By default in a git repository, verification scope defaults to `git diff --name-
 ### 9.3 Triggering without relying on the agent
 
 1. **Instruction channel:** the Core Contract tells the agent to verify before completion.
-2. **CLI / git hook:** `forgecore verify` can run as a pre-commit hook.
+2. **CLI / git hook:** `sarthi verify` can run as a pre-commit hook.
 3. **CI:** a GitHub Action runs the identical check on every PR (the same core code, so local and CI results match).
 4. **Antigravity hooks:** wire in if the Milestone 0 audit confirms suitable lifecycle events.
 
@@ -517,13 +517,13 @@ By default in a git repository, verification scope defaults to `git diff --name-
 
 ## 10. Antigravity adapter
 
-`forgecore install antigravity` (one command, idempotent, reversible):
+`sarthi install antigravity` (one command, idempotent, reversible):
 
 1. Locates the Python environment and writes the **MCP server entry** into Antigravity's MCP config with the absolute path resolved automatically (no hand-editing paths).
 2. Writes the **global rule file** containing the Core Contract.
-3. Optionally scaffolds `.forgecore/project.yaml` in the current workspace.
+3. Optionally scaffolds `.sarthi/project.yaml` in the current workspace.
 4. Runs a self-test: starts the server, calls `initialize_project` on a fixture, and prints a pass/fail.
-5. `forgecore uninstall antigravity` removes exactly what was added (tracked in a manifest).
+5. `sarthi uninstall antigravity` removes exactly what was added (tracked in a manifest).
 
 The adapter implements a small interface so other clients follow the same pattern later:
 
@@ -546,25 +546,25 @@ Built with Typer. Same core functions as the MCP tools.
 
 | Command | Purpose |
 |---|---|
-| `forgecore init [path]` | Detect stack, create `.forgecore/project.yaml`, build context |
-| `forgecore context [path]` | Print the current project context |
-| `forgecore standards [path] --task "..."` | Print standards the agent would receive |
-| `forgecore verify [path] [--all] [--json] [--timeout N]` | Run the verify loop (defaults to git diff + untracked) |
-| `forgecore approve [path]` | Interactively approve test command set for a project (requires real TTY) |
-| `forgecore revoke-approval [path]` | Revoke approved test commands for a project |
-| `forgecore install antigravity` | One-time client setup (with timestamped configuration backups) |
-| `forgecore uninstall antigravity` | Remove what install added |
-| `forgecore doctor` | Diagnose setup (Python, tools, client config) |
-| `forgecore lint-standards [--summary]` | Validate standards library schema and print layer summary |
-| `forgecore serve` | Start the MCP server over stdio |
+| `sarthi init [path]` | Detect stack, create `.sarthi/project.yaml`, build context |
+| `sarthi context [path]` | Print the current project context |
+| `sarthi standards [path] --task "..."` | Print standards the agent would receive |
+| `sarthi verify [path] [--all] [--json] [--timeout N]` | Run the verify loop (defaults to git diff + untracked) |
+| `sarthi approve [path]` | Interactively approve test command set for a project (requires real TTY) |
+| `sarthi revoke-approval [path]` | Revoke approved test commands for a project |
+| `sarthi install antigravity` | One-time client setup (with timestamped configuration backups) |
+| `sarthi uninstall antigravity` | Remove what install added |
+| `sarthi doctor` | Diagnose setup (Python, tools, client config) |
+| `sarthi lint-standards [--summary]` | Validate standards library schema and print layer summary |
+| `sarthi serve` | Start the MCP server over stdio |
 
 ---
 
 ## 12. Repository structure
 
 ```
-forgecore/
-├── src/forgecore/
+sarthi/
+├── src/sarthi/
 │   ├── __init__.py
 │   ├── cli.py                      # Typer app
 │   ├── core/
@@ -644,7 +644,7 @@ forgecore/
 ├── CHANGELOG.md  LICENSE  NOTICE   # NOTICE credits ECC if any MIT code is reused
 ```
 
-**Cleanup from earlier drafts:** the server lives at `src/forgecore/mcp/server.py` (one location, referenced by `forgecore serve`; clients never need a path to a script).
+**Cleanup from earlier drafts:** the server lives at `src/sarthi/mcp/server.py` (one location, referenced by `sarthi serve`; clients never need a path to a script).
 
 ---
 
@@ -654,28 +654,28 @@ forgecore/
 |---|---|
 | Path traversal / reading outside project | `PathGuard` on every access; root pinned at init |
 | Secret exfiltration into agent context | Deny-list for secret files; never return raw file contents; secret scan reports location, not value |
-| Prompt injection via project content | Project-derived strings fenced as untrusted data; ForgeCore output never contains instructions sourced from project files |
-| Arbitrary command execution | Only allowlisted runners and commands from `project.yaml`; resolved binary checked against project root hijacking; interactive user approval via `forgecore approve` required on a real TTY for ANY test execution; no shell string interpolation (argv lists only); timeouts; cwd = project root |
+| Prompt injection via project content | Project-derived strings fenced as untrusted data; Sarthi output never contains instructions sourced from project files |
+| Arbitrary command execution | Only allowlisted runners and commands from `project.yaml`; resolved binary checked against project root hijacking; interactive user approval via `sarthi approve` required on a real TTY for ANY test execution; no shell string interpolation (argv lists only); timeouts; cwd = project root |
 | Malicious contributed rules/verifiers | Standards are data validated by schema; Semgrep verifiers reviewed in PR; no code execution from standards |
 | Supply chain | Pinned dependencies, minimal dep set, `pip-audit` in CI, signed releases (later) |
 
-ForgeCore does **not** claim to control IDE permissions (file writes, terminal approval). Those belong to the client.
+Sarthi does **not** claim to control IDE permissions (file writes, terminal approval). Those belong to the client.
 
 ---
 
 ## 14. Testing and evaluation
 
-### 14.1 Testing ForgeCore itself
+### 14.1 Testing Sarthi itself
 
 - **Unit:** each detector, selector ranking, budget truncation, PathGuard escapes, schema validation.
 - **Integration:** launch the MCP server and call every tool through a real MCP client session; verify-loop run against fixtures with seeded violations.
-- **Standards CI:** `forgecore lint-standards` validates every rule against the schema, checks verifier refs exist, and runs each Semgrep rule against its good/bad examples (the "bad" example must trigger it, the "good" must not).
+- **Standards CI:** `sarthi lint-standards` validates every rule against the schema, checks verifier refs exist, and runs each Semgrep rule against its good/bad examples (the "bad" example must trigger it, the "good" must not).
 
 ### 14.2 The proof: A/B evaluation
 
 *(Note: Automated agent A/B evaluation suite under `evals/` is planned post-v0.1; v0.1 establishes baseline verification through deterministic test suites and benchmark scripts under `scripts/`)*.
 
-The README's claims must be backed by evidence. `evals/` defines **10+ standard tasks** (e.g., "add JWT auth with refresh tokens", "add a paginated list endpoint with filtering"), each run in the same agent **with and without** ForgeCore, scored by automated rubric:
+The README's claims must be backed by evidence. `evals/` defines **10+ standard tasks** (e.g., "add JWT auth with refresh tokens", "add a paginated list endpoint with filtering"), each run in the same agent **with and without** Sarthi, scored by automated rubric:
 
 | Criterion | How measured |
 |---|---|
@@ -698,7 +698,7 @@ Results (including negative ones) are published in `evals/results/`. **Release g
 | **M1: Core** | models, config, detectors, PathGuard, context + fingerprint, CLI `init/context` | Detects all five stacks on fixtures; unit tests green |
 | **M2: Standards library** | schema, `lint-standards`, Core Contract, universal + security + testing, ≥ 12 rules per stack layer | CI validates all rules; each stack meets the quality bar or is labeled experimental |
 | **M3: MCP server** | six tools, resources, prompts, instructions | Works in MCP Inspector; integration tests pass |
-| **M4: Verify loop** | runners, report, `forgecore verify`, Semgrep rules | Seeded-violation fixtures all caught; `incomplete` status behaves correctly |
+| **M4: Verify loop** | runners, report, `sarthi verify`, Semgrep rules | Seeded-violation fixtures all caught; `incomplete` status behaves correctly |
 | **M5: Antigravity adapter** | `install/uninstall/doctor` | One command on a clean machine gives a working setup; agent calls `initialize_project` unprompted in manual trials |
 | **M6: Evaluation** | `evals/` runs, published results | A/B results documented honestly |
 | **M7: Public release v0.1.0** | docs, demo, GitHub release, LinkedIn launch | [Section 16](#16-open-source-launch-plan) checklist complete |
@@ -719,7 +719,7 @@ Results (including negative ones) are published in `evals/results/`. **Release g
 - [ ] Rule-authoring guide with a "add your first rule in 10 minutes" tutorial
 - [ ] CI badges: tests, lint-standards, coverage
 - [ ] Issue/PR templates; `good first issue` labels (new rules are ideal first contributions)
-- [ ] Demo: 60-90 second video, same prompt with and without ForgeCore, side-by-side
+- [ ] Demo: 60-90 second video, same prompt with and without Sarthi, side-by-side
 - [ ] A/B results table in the README
 
 ### 16.2 GitHub release
@@ -752,7 +752,7 @@ Cross-post to relevant communities (MCP and AI-coding communities, Hacker News "
 | Five stacks at once spreads effort thin | Depth tiers; quality bar; `experimental` labeling; ship deepest stacks first |
 | Standards overlap with what models already know | Prioritize specific, checkable, opinionated rules; measure via A/B |
 | Agent ignores the verify step | CI/git-hook enforcement runs the same core regardless of agent behavior |
-| MCP SDK API changes | Pin version; isolate in `forgecore/mcp/`; core is SDK-independent |
+| MCP SDK API changes | Pin version; isolate in `sarthi/mcp/`; core is SDK-independent |
 | Crowded space (rule collections, ECC, cursor-rules) | Differentiate on dynamic context, verification, and published evals |
 | Solo-maintainer scope | Strict milestone gating; community-contributed rules via data-only PRs |
 
@@ -762,10 +762,10 @@ Cross-post to relevant communities (MCP and AI-coding communities, Hacker News "
 
 ## 18. Credits and licensing
 
-ForgeCore is released under the **MIT License**.
+Sarthi is released under the **MIT License**.
 
-Everything Claude Code (ECC) is an MIT-licensed project used as a **research baseline** for how harness configuration (rules, skills, hooks, agents, MCP) can be organized. ForgeCore's standards, rule schema, selection logic, MCP implementation and verify loop are independently authored. If any ECC content is reused verbatim, its copyright and license notice are retained in `NOTICE` for those portions.
+Everything Claude Code (ECC) is an MIT-licensed project used as a **research baseline** for how harness configuration (rules, skills, hooks, agents, MCP) can be organized. Sarthi's standards, rule schema, selection logic, MCP implementation and verify loop are independently authored. If any ECC content is reused verbatim, its copyright and license notice are retained in `NOTICE` for those portions.
 
 ---
 
-*ForgeCore: teach AI agents how to engineer software, not just how to format code.*
+*Sarthi: teach AI agents how to engineer software, not just how to format code.*

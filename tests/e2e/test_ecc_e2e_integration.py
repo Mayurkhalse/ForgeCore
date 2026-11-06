@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from forgecore.core.resources.compiler import ContextCompiler
-from forgecore.core.verify.trust import CommandTrustManager
-from forgecore.mcp.tools import MCPToolHandlers
+from sarthi.core.resources.compiler import ContextCompiler
+from sarthi.core.verify.trust import CommandTrustManager
+from sarthi.mcp.tools import MCPToolHandlers
 
 from .fixtures import create_login_api_fixture
 

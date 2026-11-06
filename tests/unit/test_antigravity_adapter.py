@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from forgecore.adapters.antigravity.adapter import AntigravityAdapter
-from forgecore.adapters.base import InstallOpts
-from forgecore.cli import app
+from sarthi.adapters.antigravity.adapter import AntigravityAdapter
+from sarthi.adapters.base import InstallOpts
+from sarthi.cli import app
 
 runner = CliRunner()
 
@@ -44,14 +44,14 @@ def test_install_clean(tmp_path: Path) -> None:
     assert adapter.global_rule_path.is_file()
     assert adapter.manifest_path.is_file()
 
-    # mcp_config contains forgecore
+    # mcp_config contains sarthi
     mcp_data = json.loads(adapter.mcp_config_path.read_text(encoding="utf-8"))
-    assert "forgecore" in mcp_data["mcpServers"]
+    assert "sarthi" in mcp_data["mcpServers"]
 
     # GEMINI.md contains core contract
     content = adapter.global_rule_path.read_text(encoding="utf-8")
-    assert "<!-- FORGECORE-MANAGED-START -->" in content
-    assert "<!-- FORGECORE-MANAGED-END -->" in content
+    assert "<!-- SARTHI-MANAGED-START -->" in content
+    assert "<!-- SARTHI-MANAGED-END -->" in content
 
 
 def test_install_creates_timestamped_backups_and_never_overwrites(tmp_path: Path) -> None:
@@ -102,12 +102,12 @@ def test_install_creates_timestamped_backups_and_never_overwrites(tmp_path: Path
     # User content preserved in active files
     active_mcp = json.loads(adapter.mcp_config_path.read_text(encoding="utf-8"))
     assert "my-custom-tool" in active_mcp["mcpServers"]
-    assert "forgecore" in active_mcp["mcpServers"]
+    assert "sarthi" in active_mcp["mcpServers"]
 
     active_rule = adapter.global_rule_path.read_text(encoding="utf-8")
     assert "# User Instructions" in active_rule
     assert "Always be helpful and concise." in active_rule
-    assert "<!-- FORGECORE-MANAGED-START -->" in active_rule
+    assert "<!-- SARTHI-MANAGED-START -->" in active_rule
 
 
 def test_uninstall_restores_user_content_and_preserves_backups(tmp_path: Path) -> None:
@@ -137,11 +137,11 @@ def test_uninstall_restores_user_content_and_preserves_backups(tmp_path: Path) -
     # Active files restored
     restored_mcp = json.loads(adapter.mcp_config_path.read_text(encoding="utf-8"))
     assert "existing" in restored_mcp["mcpServers"]
-    assert "forgecore" not in restored_mcp["mcpServers"]
+    assert "sarthi" not in restored_mcp["mcpServers"]
 
     restored_rule = adapter.global_rule_path.read_text(encoding="utf-8")
     assert "# Custom Persona" in restored_rule
-    assert "<!-- FORGECORE-MANAGED-START -->" not in restored_rule
+    assert "<!-- SARTHI-MANAGED-START -->" not in restored_rule
 
 
 def test_refuse_on_invalid_json(tmp_path: Path) -> None:
@@ -171,7 +171,7 @@ def test_dry_run_does_not_modify_disk(tmp_path: Path) -> None:
     assert res.success is True
     assert "[Dry Run]" in res.message
     assert not config_dir.exists()
-    assert not (tmp_path / ".forgecore" / "project.yaml").exists()
+    assert not (tmp_path / ".sarthi" / "project.yaml").exists()
 
 
 def test_dry_run_refuses_invalid_json(tmp_path: Path) -> None:

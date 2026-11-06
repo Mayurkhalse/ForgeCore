@@ -54,8 +54,8 @@ def measure_one_run(cmd: list[str]) -> float:
 
 
 def main() -> None:
-    # Measure 'forgecore serve' via CLI entrypoint
-    cmd = [sys.executable, "-u", "-m", "forgecore.cli", "serve"]
+    # Measure 'sarthi serve' via CLI entrypoint
+    cmd = [sys.executable, "-u", "-m", "sarthi.cli", "serve"]
     runs = 10
     times: list[float] = []
 
