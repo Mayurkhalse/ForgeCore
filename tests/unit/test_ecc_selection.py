@@ -61,7 +61,7 @@ def test_selection_spring_boot_task(selector: UnifiedResourceSelector):
     )
     ids = [r.id for r in res]
     assert "native.contract.core" in ids
-    assert any("SPRING-" in i or "java" in i for i in ids)
+    assert any("spring" in i or "java" in i for i in ids)
 
     # Exclude Python/FastAPI
     assert not any("FAPI-" in i for i in ids)

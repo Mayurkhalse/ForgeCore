@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from forgecore.core.budget import BudgetManager
 from forgecore.core.models import ProjectConfig
-from forgecore.core.providers.registry import ProviderRegistry
 from forgecore.core.resources.conflict import ConflictResolver
 from forgecore.core.resources.models import (
     CompatibilityStatus,
@@ -14,6 +14,9 @@ from forgecore.core.resources.models import (
     PrecedenceTier,
     SelectionTrace,
 )
+
+if TYPE_CHECKING:
+    from forgecore.core.providers.registry import ProviderRegistry
 
 FRAMEWORK_FAMILIES = [
     {"fastapi", "django", "flask", "tornado", "laravel", "rails", "spring"},
@@ -32,7 +35,11 @@ class UnifiedResourceSelector:
         registry: ProviderRegistry | None = None,
         budget_manager: BudgetManager | None = None,
     ) -> None:
-        self.registry = registry or ProviderRegistry.create_default()
+        if registry is None:
+            from forgecore.core.providers.registry import ProviderRegistry
+
+            registry = ProviderRegistry.create_default()
+        self.registry = registry
         self.budget_manager = budget_manager or BudgetManager()
 
     def _is_cross_framework_conflict(self, resource: EngineeringResource, active_layers: set[str]) -> bool:
@@ -138,11 +145,12 @@ class UnifiedResourceSelector:
 
             candidates.append(res)
 
-        # 2. Score candidates by relevance and precedence
+        # 2. Score candidates by relevance and precedence (with deterministic secondary sort key)
         candidates.sort(
             key=lambda r: (
                 r.precedence_tier,
                 -self._calculate_relevance(r, active_set, task),
+                r.id,
             )
         )
 

@@ -136,7 +136,7 @@ class ECCBundledProvider:
         # 1. Index Skills
         skills_dir = self.ecc_dir / "skills"
         if skills_dir.is_dir():
-            for s_dir in skills_dir.iterdir():
+            for s_dir in sorted(skills_dir.iterdir(), key=lambda p: p.name):
                 if not s_dir.is_dir():
                     continue
                 skill_file = s_dir / "SKILL.md"
@@ -153,7 +153,7 @@ class ECCBundledProvider:
 
                 # Check for associated scripts
                 scripts = []
-                for sc in s_dir.rglob("*"):
+                for sc in sorted(s_dir.rglob("*"), key=lambda p: p.as_posix()):
                     if sc.is_file() and sc.suffix in [".py", ".sh", ".js"]:
                         scripts.append(sc.relative_to(self.ecc_dir).as_posix())
 
@@ -184,7 +184,7 @@ class ECCBundledProvider:
         # 2. Index Rules
         rules_dir = self.ecc_dir / "rules"
         if rules_dir.is_dir():
-            for r_file in rules_dir.rglob("*.md"):
+            for r_file in sorted(rules_dir.rglob("*.md"), key=lambda p: p.as_posix()):
                 rel = r_file.relative_to(rules_dir)
                 parts = rel.parts
                 lang = parts[0] if len(parts) > 1 else "universal"
@@ -228,7 +228,7 @@ class ECCBundledProvider:
         # 3. Index Commands
         commands_dir = self.ecc_dir / "commands"
         if commands_dir.is_dir():
-            for c_file in commands_dir.glob("*.md"):
+            for c_file in sorted(commands_dir.glob("*.md"), key=lambda p: p.name):
                 cmd_id = f"ecc.command.{c_file.stem}"
                 raw_text = c_file.read_text(encoding="utf-8")
                 fm, body = self._parse_frontmatter(raw_text)
@@ -262,7 +262,7 @@ class ECCBundledProvider:
         # 4. Index Agents
         agents_dir = self.ecc_dir / "agents"
         if agents_dir.is_dir():
-            for a_file in agents_dir.glob("*.md"):
+            for a_file in sorted(agents_dir.glob("*.md"), key=lambda p: p.name):
                 agent_id = f"ecc.agent.{a_file.stem}"
                 raw_text = a_file.read_text(encoding="utf-8")
                 fm, body = self._parse_frontmatter(raw_text)
@@ -299,7 +299,7 @@ class ECCBundledProvider:
         # 5. Index Contexts
         ctx_dir = self.ecc_dir / "contexts"
         if ctx_dir.is_dir():
-            for ctx_file in ctx_dir.glob("*.md"):
+            for ctx_file in sorted(ctx_dir.glob("*.md"), key=lambda p: p.name):
                 ctx_id = f"ecc.context.{ctx_file.stem}"
                 raw_text = ctx_file.read_text(encoding="utf-8")
                 self._resources[ctx_id] = EngineeringResource(
@@ -328,7 +328,7 @@ class ECCBundledProvider:
         # 6. Index Workflows
         wf_dir = self.ecc_dir / "workflows"
         if wf_dir.is_dir():
-            for wf_file in wf_dir.iterdir():
+            for wf_file in sorted(wf_dir.iterdir(), key=lambda p: p.name):
                 if wf_file.is_file() and wf_file.name != "README.md":
                     wf_id = f"ecc.workflow.{wf_file.stem}"
                     raw_text = wf_file.read_text(encoding="utf-8")
@@ -362,7 +362,7 @@ class ECCBundledProvider:
         # 7. Index Passive Scripts (ADR-009)
         sc_dir = self.ecc_dir / "scripts"
         if sc_dir.is_dir():
-            for sc_file in sc_dir.iterdir():
+            for sc_file in sorted(sc_dir.iterdir(), key=lambda p: p.name):
                 if sc_file.is_file() and sc_file.name != "README.md":
                     sc_id = f"ecc.script.{sc_file.stem}"
                     raw_text = sc_file.read_text(encoding="utf-8")
