@@ -363,5 +363,41 @@ def serve() -> None:
     run_server()
 
 
+@app.command(name="eval")
+def run_eval(
+    scenario: str = typer.Option("FASTAPI-RATELIMIT-01", "--scenario", "-s", help="Benchmark scenario ID."),
+    provider: str = typer.Option("mock", "--provider", "-p", help="Provider adapter: mock, anthropic, gemini, openai."),
+    model: str = typer.Option("", "--model", "-m", help="Model name identifier."),
+    cost_cap: float = typer.Option(0.50, "--cost-cap", help="Cost cap in USD."),
+    output_dir: str = typer.Option("eval_results", "--output-dir", "-o", help="Output directory for reports."),
+) -> None:
+    """Run Layer 4 Live AI coding agent comparative evaluation."""
+    from sarthi.eval.config import LiveEvalConfig
+    from sarthi.eval.runner import LiveAIEvaluationRunner
+
+    cfg = LiveEvalConfig(
+        enabled=True,
+        provider=provider,
+        model_name=model or ("mock-model" if provider == "mock" else ""),
+        cost_cap_usd=cost_cap,
+        output_dir=Path(output_dir),
+    )
+
+    runner = LiveAIEvaluationRunner(config=cfg)
+    console.print(f"[bold cyan]Starting Layer 4 Evaluation:[/bold cyan] scenario=[yellow]{scenario}[/yellow], provider=[green]{provider}[/green]")
+
+    result = runner.run_live_scenario(scenario=scenario)
+    if result.get("status") == "skipped":
+        console.print(f"[bold red]Evaluation skipped:[/bold red] {result.get('reason')}")
+        raise typer.Exit(code=1)
+
+    console.print("[bold green]Evaluation Completed![/bold green]")
+    console.print(f"  Findings Reduction: [bold cyan]{result.get('findings_reduction', 0):+d}[/bold cyan]")
+    console.print(f"  Sarthi Passed Cleanly: {'[green]YES[/green]' if result.get('sarthi_passed_cleanly') else '[red]NO[/red]'}")
+    console.print(f"  Baseline Passed Cleanly: {'[green]YES[/green]' if result.get('baseline_passed_cleanly') else '[red]NO[/red]'}")
+    console.print(f"  Markdown Report: {result.get('markdown_report_path')}")
+    console.print(f"  JSON Report: {result.get('json_report_path')}")
+
+
 if __name__ == "__main__":
     app()
