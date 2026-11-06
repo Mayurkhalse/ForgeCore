@@ -16,7 +16,7 @@ $$\text{Developer Prompt} \longrightarrow \text{Sarthi Pipeline} \longrightarrow
 
 1. **Decoupled from Mandatory PR CI:** Ordinary CI runs (Layers 1–3) remain 100% offline, zero-cost, and deterministic. Layer 4 **never blocks Pull Request CI** and requires no external API credentials to merge code.
 2. **Strict Opt-In Activation:** Layer 4 only runs when `SARTHI_LIVE_EVAL_ENABLED=1` is explicitly set or via manual `workflow_dispatch` in GitHub Actions.
-3. **Workspace Isolation via PathGuard:** The evaluated AI agent operates strictly within an isolated temporary sandbox (`tmp_path / "sandbox"`). `PathGuard` actively prevents directory traversal (`../`), credential file access (`.env`, `*.pem`, `id_rsa`), and writes outside the target workspace.
+3. **Application-Level Path Guarding & Credential Sanitization (Defense-in-Depth):** The evaluated AI agent operates within a dedicated workspace path. `PathGuard` actively prevents directory traversal (`../`), credential file access (`.env`, `*.pem`, `id_rsa`), `.git` directory access, and writes outside the target workspace. All subprocess runners (`pytest`, `ruff`, `eslint`, `semgrep`) run with a strictly sanitized environment (`SAFE_ENV_ALLOWLIST`) preventing API key or credential inheritance. *(Note: This is application-level filtering, NOT an OS-level sandbox; see Section 7).*
 4. **Hard Financial & Execution Caps:** Every run is guarded by `LiveEvalBudgetManager`:
    - Maximum financial cost per scenario (e.g., \$0.50 USD).
    - Maximum token consumption (e.g., 16,384 tokens).
@@ -131,4 +131,39 @@ Navigate to **Actions** &rarr; **Live AI Coding Agent Evaluation (Layer 4)** &ra
 3. Select scenario (`FASTAPI-RATELIMIT-01`).
 4. Set cost cap (`0.50`).
 5. Download generated evaluation artifacts from the workflow summary.
+
+---
+
+## 7. Mandatory Operational Prerequisite: OS-Level Sandboxing (SEC-01C)
+
+> [!WARNING]
+> **Live LLM evaluation is NOT safe to execute on a bare Windows workstation without container or VM isolation.**
+
+### 7.1 Separation of Concerns: Python Controls vs. OS Sandboxing
+
+The current Layer 4 architecture implements rigorous **application-level defensiveness**:
+- `PathGuard`: Blocks filesystem escape, directory traversal (`../`), symlink redirections, `.git` metadata access, and sensitive secret filenames.
+- `build_sanitized_subprocess_env()`: Strictly scrubs provider API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`), secret tokens, and host user credential variables from child subprocesses.
+- `CommandTrustManager`: Requires cryptographic pre-approval for any custom test runner command.
+- `fail_on_override`: Prevents agent-generated configuration from weakening verification failure thresholds.
+
+However, **environment sanitization and path validation do not constitute an OS-level sandbox**:
+1. Untrusted generated Python code executed during test runs (`pytest`) executes with the current host user's OS privileges.
+2. The running process can probe localhost networking, consume unconstrained host CPU and RAM, spawn background daemon threads, or interact with accessible non-environment OS resources (such as Windows named pipes, registry, or accessible user directories outside Python's `PathGuard` checks).
+3. Process tree termination on Windows is not guaranteed to kill decoupled descendant processes unless tracked via OS job objects or container teardown.
+
+### 7.2 Mandatory Sandbox Contract for Live Evaluations
+
+Before running live evaluations against unverified external models or third-party code generation, the evaluation runner **must** execute inside an isolated OCI/Docker container or microVM (e.g., gVisor, Firecracker, or Docker Desktop WSL2) satisfying the following specification:
+
+| Security Dimension | Specification & Contract |
+| :--- | :--- |
+| **Workspace Isolation** | Ephemeral, disposable container created per scenario condition; completely destroyed and deleted on exit. |
+| **Filesystem Mounts** | Strictly mount only the staged workspace directory (`/workspace`). Never bind-mount host home directories (`~`, `%USERPROFILE%`), Docker sockets (`/var/run/docker.sock`), or host configuration trees. |
+| **Credential Boundary** | Zero host credentials passed into the container. Provider API keys are held exclusively by the outer harness process (or a local egress-authenticating proxy); never exposed to the agent container. |
+| **Network Egress** | Verification execution (`pytest`, `eslint`, `semgrep`) must run with `--network none`. Agent loop requires egress strictly restricted to authorized LLM API endpoints. |
+| **Resource Quotas** | Hard cgroup limits enforced per container: `--cpus 2`, `-m 2g`, `--pids-limit 100`. |
+| **Process Cleanup** | Container teardown guarantees unconditional killing of all child and orphaned processes (`docker rm -f`). |
+| **Execution Timeout** | Strict wall-clock watchdog killed from outside the container runtime upon timeout expiration. |
+
 
