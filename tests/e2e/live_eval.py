@@ -6,69 +6,46 @@ from mandatory PR CI, ensuring PR CI is 100% deterministic, offline, and zero-co
 
 Activation requires:
 1. Environment variable: SARTHI_LIVE_EVAL_ENABLED=1
-2. Provider API key: ANTHROPIC_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY
+2. Provider API key: ANTHROPIC_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY (or provider="mock")
 3. Explicit execution and token/cost caps.
 """
 
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
+import tempfile
+from pathlib import Path
 from typing import Any
 
-
-@dataclass
-class LiveEvalConfig:
-    enabled: bool = False
-    provider: str = "none"
-    model_name: str = "none"
-    max_tokens: int = 4096
-    cost_cap_usd: float = 0.50
-    timeout_seconds: int = 120
+from sarthi.eval.config import LiveEvalConfig
+from sarthi.eval.experiment import ComparativeEvaluationHarness, ExperimentResult
+from sarthi.eval.providers import get_provider
+from sarthi.eval.reporter import EvaluationReporter
+from sarthi.eval.scenarios import (
+    BENCHMARK_SCENARIOS,
+    SCENARIO_FASTAPI_RATE_LIMIT,
+    EvalScenario,
+)
 
 
 class LiveAIEvaluationRunner:
     """Extension runner for Layer 4 live model evaluations."""
 
     def __init__(self, config: LiveEvalConfig | None = None) -> None:
-        self.config = config or self._resolve_config_from_env()
-
-    @staticmethod
-    def _resolve_config_from_env() -> LiveEvalConfig:
-        enabled = os.environ.get("SARTHI_LIVE_EVAL_ENABLED", "0").strip().lower() in {"1", "true", "yes"}
-        provider = os.environ.get("SARTHI_LIVE_EVAL_PROVIDER", "anthropic")
-        model = os.environ.get("SARTHI_LIVE_EVAL_MODEL", "claude-3-5-sonnet-latest")
-        cost_cap = float(os.environ.get("SARTHI_LIVE_EVAL_COST_CAP", "0.50"))
-        return LiveEvalConfig(
-            enabled=enabled,
-            provider=provider,
-            model_name=model,
-            cost_cap_usd=cost_cap,
-        )
+        self.config = config or LiveEvalConfig.from_env()
+        self.harness = ComparativeEvaluationHarness()
 
     def is_enabled(self) -> bool:
         return self.config.enabled
 
     def check_prerequisites(self) -> tuple[bool, str]:
-        if not self.config.enabled:
-            return False, "Layer 4 live evaluation is disabled (SARTHI_LIVE_EVAL_ENABLED!=1)"
-
-        if self.config.provider == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
-            return False, "ANTHROPIC_API_KEY not configured in environment"
-        if self.config.provider == "gemini" and not os.environ.get("GEMINI_API_KEY"):
-            return False, "GEMINI_API_KEY not configured in environment"
-        if self.config.provider == "openai" and not os.environ.get("OPENAI_API_KEY"):
-            return False, "OPENAI_API_KEY not configured in environment"
-
-        return True, "Prerequisites met for live AI evaluation"
+        return self.config.validate_credentials()
 
     def run_live_scenario(
         self,
-        prompt: str,
-        context: dict[str, Any],
-        standards: list[dict[str, Any]],
+        scenario: EvalScenario | str | None = None,
+        workspace_parent: Path | None = None,
     ) -> dict[str, Any]:
-        """Executes a live model query using the assembled prompt and context."""
+        """Executes a live model evaluation scenario using the assembled prompt and context."""
         ready, reason = self.check_prerequisites()
         if not ready:
             return {
@@ -77,12 +54,46 @@ class LiveAIEvaluationRunner:
                 "cost_usd": 0.0,
             }
 
-        # Extension point for live LLM provider API call
-        # In actual live evaluation runs, calls provider client with token/cost bounds
-        return {
-            "status": "executed",
-            "provider": self.config.provider,
-            "model": self.config.model_name,
-            "note": "Live evaluation runner extension point ready",
-        }
+        target_scenario: EvalScenario
+        if isinstance(scenario, str):
+            target_scenario = BENCHMARK_SCENARIOS.get(scenario, SCENARIO_FASTAPI_RATE_LIMIT)
+        elif isinstance(scenario, EvalScenario):
+            target_scenario = scenario
+        else:
+            target_scenario = SCENARIO_FASTAPI_RATE_LIMIT
 
+        provider = get_provider(self.config)
+
+        if workspace_parent is None:
+            temp_dir = tempfile.TemporaryDirectory(prefix="sarthi_live_eval_")
+            work_dir = Path(temp_dir.name)
+        else:
+            work_dir = workspace_parent
+            temp_dir = None
+
+        try:
+            exp_result: ExperimentResult = self.harness.run_experiment(
+                scenario=target_scenario,
+                provider=provider,
+                config=self.config,
+                parent_dir=work_dir,
+            )
+
+            # Save report to configured output directory
+            json_path, md_path = EvaluationReporter.save_reports([exp_result], self.config.output_dir)
+
+            return {
+                "status": "executed",
+                "scenario_id": target_scenario.id,
+                "provider": self.config.provider,
+                "model": self.config.model_name,
+                "findings_reduction": exp_result.findings_delta,
+                "sarthi_passed_cleanly": exp_result.sarthi.verify_report.status == "passed",
+                "baseline_passed_cleanly": exp_result.baseline.verify_report.status == "passed",
+                "json_report_path": str(json_path),
+                "markdown_report_path": str(md_path),
+                "result": exp_result.to_dict(),
+            }
+        finally:
+            if temp_dir is not None:
+                temp_dir.cleanup()

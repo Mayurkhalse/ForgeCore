@@ -1,0 +1,82 @@
+name: Live AI Coding Agent Evaluation (Layer 4)
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "LLM Provider to evaluate"
+        required: true
+        type: choice
+        options:
+          - anthropic
+          - gemini
+          - openai
+          - mock
+        default: anthropic
+      model:
+        description: "Model identifier (e.g. claude-3-5-sonnet-20241022, gemini-1.5-pro-latest, gpt-4o)"
+        required: true
+        type: string
+        default: "claude-3-5-sonnet-20241022"
+      scenario:
+        description: "Benchmark Scenario"
+        required: true
+        type: choice
+        options:
+          - FASTAPI-RATELIMIT-01
+          - FASTAPI-SECURE-AUTH-02
+          - ADV-INJECTION-03
+        default: FASTAPI-RATELIMIT-01
+      cost_cap:
+        description: "Cost limit in USD (hard stop)"
+        required: true
+        type: string
+        default: "0.50"
+
+jobs:
+  live-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Live AI Evaluation Scenario
+        env:
+          SARTHI_LIVE_EVAL_ENABLED: "1"
+          SARTHI_LIVE_EVAL_PROVIDER: ${{ github.event.inputs.provider }}
+          SARTHI_LIVE_EVAL_MODEL: ${{ github.event.inputs.model }}
+          SARTHI_LIVE_EVAL_COST_CAP: ${{ github.event.inputs.cost_cap }}
+          SARTHI_LIVE_EVAL_OUTPUT_DIR: "eval_results"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          uv run python -c "
+          from tests.e2e.live_eval import LiveAIEvaluationRunner
+          runner = LiveAIEvaluationRunner()
+          result = runner.run_live_scenario(scenario='${{ github.event.inputs.scenario }}')
+          print('Evaluation result:', result.get('status'))
+          if result.get('status') == 'skipped':
+              print('Evaluation skipped reason:', result.get('reason'))
+              exit(1)
+          "
+
+      - name: Upload Evaluation Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-eval-reports
+          path: eval_results/
+
