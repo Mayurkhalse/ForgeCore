@@ -10,7 +10,10 @@ if TYPE_CHECKING:
     from forgecore.core.verify.trust import CommandTrustManager
 
 FASTAPI_SHIM = '''"""Lightweight offline FastAPI compatibility shim over Starlette."""
+from __future__ import annotations
+
 from typing import Any, Callable
+
 from starlette import status
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -55,7 +58,12 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
+extend-exclude = ["fastapi"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]
 """
 
 PROJECT_YAML = """version: 1
@@ -89,7 +97,7 @@ class TokenResponse(BaseModel):
 
 APP_AUTH = '''"""Authentication and credential verification logic."""
 
-from typing import Optional
+from __future__ import annotations
 
 USERS_DB = {
     "alice": "secret123",
@@ -97,7 +105,7 @@ USERS_DB = {
 }
 
 
-def authenticate_user(username: Optional[str], password: Optional[str]) -> bool:
+def authenticate_user(username: str | None, password: str | None) -> bool:
     if not username or not password:
         return False
     return USERS_DB.get(username) == password

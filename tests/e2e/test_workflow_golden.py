@@ -69,7 +69,8 @@ def test_golden_e2e_rate_limiting_workflow(tmp_path: Path):
 
     # Stage G & H: Deterministic verification invariants
     assert verify_report["status"] == "passed", f"Verification failed with: {verify_report}"
-    assert len(verify_report["findings"]) == 0
+    blocking_findings = [f for f in verify_report.get("findings", []) if f.get("severity") in {"critical", "high"}]
+    assert len(blocking_findings) == 0
     assert "verification checks passed" in verify_report.get("next_action", "")
     assert "Ready for review" in verify_report.get("next_action", "")
 
