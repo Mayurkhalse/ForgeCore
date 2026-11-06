@@ -68,3 +68,4 @@ class E2EScenarioReport:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2)
         return file_path
+
