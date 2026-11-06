@@ -36,6 +36,9 @@ jobs:
       - name: Validate Standards Library
         run: uv run forgecore lint-standards
 
+      - name: Verify ECC Snapshot Integrity
+        run: uv run python scripts/verify_ecc_snapshot.py
+
       - name: Run Pytest Test Suite
         run: uv run pytest
 
