@@ -39,6 +39,91 @@ SHELL_METACHARACTERS: set[str] = {
     ")",
 }
 
+# Strict environment variable allowlist for child verification subprocesses.
+# Only variables essential for OS and runtime operation are permitted.
+SAFE_ENV_ALLOWLIST: set[str] = {
+    # System execution & core paths
+    "PATH",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "HOME",
+    "USERPROFILE",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "SYSTEMDRIVE",
+    "OS",
+    "NUMBER_OF_PROCESSORS",
+    "PROCESSOR_ARCHITECTURE",
+    "PROCESSOR_IDENTIFIER",
+    "PROCESSOR_LEVEL",
+    "PROCESSOR_REVISION",
+    # Locale & terminal
+    "LANG",
+    "LC_ALL",
+    "TERM",
+    "PYTHONIOENCODING",
+    "PYTHONUTF8",
+    # Virtual environment
+    "VIRTUAL_ENV",
+}
+
+# Sensitive credential and key substrings that must NEVER appear in subprocess environments
+DENIED_ENV_SUBSTRINGS: tuple[str, ...] = (
+    "KEY",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASSWD",
+    "CREDENTIAL",
+    "AUTH",
+    "ANTHROPIC",
+    "GEMINI",
+    "OPENAI",
+    "AWS",
+    "GITHUB",
+    "SSH",
+    "PRIVATE",
+)
+
+
+def build_sanitized_subprocess_env(
+    project_root: Path | str,
+    base_env: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Constructs a minimal, sanitized environment dictionary for verification subprocesses.
+
+    Defense-in-depth isolation guarantees:
+    - Never inherits LLM provider API keys (ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY)
+      or any credential/secret/token variables.
+    - Preserves strictly allowlisted platform variables required for stable execution on Windows,
+      macOS, and Linux.
+    - Explicitly sets PYTHONPATH to include project_root so project modules can be loaded safely.
+    - Sets PYTHONDONTWRITEBYTECODE=1 to prevent cluttering directories with bytecode cache.
+    """
+    source = os.environ if base_env is None else base_env
+    sanitized: dict[str, str] = {}
+
+    for k, v in source.items():
+        k_upper = k.upper()
+        if k_upper in SAFE_ENV_ALLOWLIST:
+            if not any(denied in k_upper for denied in DENIED_ENV_SUBSTRINGS):
+                sanitized[k] = v
+
+    p_root = str(Path(project_root).resolve())
+    if "PYTHONPATH" in sanitized:
+        sanitized["PYTHONPATH"] = f"{p_root}{os.pathsep}{sanitized['PYTHONPATH']}"
+    else:
+        sanitized["PYTHONPATH"] = p_root
+
+    sanitized["PYTHONDONTWRITEBYTECODE"] = "1"
+    return sanitized
+
+
 
 class CommandTrustError(Exception):
     """Base exception for command security and trust validation."""

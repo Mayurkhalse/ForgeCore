@@ -7,6 +7,7 @@ from pathlib import Path
 
 from sarthi.core.models import Finding, RunContext, Severity
 from sarthi.core.verify.runners.base import Runner
+from sarthi.core.verify.trust import build_sanitized_subprocess_env
 
 
 class SemgrepRunner(Runner):
@@ -45,6 +46,7 @@ class SemgrepRunner(Runner):
             return []
 
         findings: list[Finding] = []
+        safe_env = build_sanitized_subprocess_env(ctx.project_root)
         for config_path in rule_configs:
             cmd = [
                 "semgrep",
@@ -57,6 +59,7 @@ class SemgrepRunner(Runner):
                 res = subprocess.run(
                     cmd,
                     cwd=str(ctx.project_root),
+                    env=safe_env,
                     capture_output=True,
                     text=True,
                     timeout=45,

@@ -10,6 +10,7 @@ from sarthi.core.verify.runners.base import Runner
 from sarthi.core.verify.trust import (
     CommandTrustError,
     CommandTrustManager,
+    build_sanitized_subprocess_env,
     parse_and_validate_command,
 )
 
@@ -137,10 +138,12 @@ class TestRunner(Runner):
             return []
 
         findings: list[Finding] = []
+        safe_env = build_sanitized_subprocess_env(ctx.project_root)
         try:
             res = subprocess.run(
                 cmd,
                 cwd=str(ctx.project_root),
+                env=safe_env,
                 capture_output=True,
                 text=True,
                 timeout=60,

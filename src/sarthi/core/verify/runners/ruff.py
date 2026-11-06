@@ -9,6 +9,7 @@ from pathlib import Path
 
 from sarthi.core.models import Finding, RunContext, Severity, SkippedCheck
 from sarthi.core.verify.runners.base import Runner
+from sarthi.core.verify.trust import build_sanitized_subprocess_env
 
 BATCH_SIZE = 100
 
@@ -69,10 +70,12 @@ class RuffRunner(Runner):
             file_args = [str(f.relative_to(ctx.project_root)) for f in batch]
             cmd = [bin_path, "check", "--force-exclude", "--output-format=json", *file_args]
 
+            safe_env = build_sanitized_subprocess_env(ctx.project_root)
             try:
                 res = subprocess.run(
                     cmd,
                     cwd=str(ctx.project_root),
+                    env=safe_env,
                     capture_output=True,
                     text=True,
                     timeout=30,

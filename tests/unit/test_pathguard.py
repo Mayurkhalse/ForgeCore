@@ -4,6 +4,7 @@ import pytest
 
 from sarthi.core.pathguard import (
     FileTooLargeError,
+    GitDirectoryAccessError,
     PathGuard,
     PathTraversalError,
     SecretFileAccessError,
@@ -54,3 +55,52 @@ def test_pathguard_file_size_limit(tmp_path: Path):
     guard = PathGuard(tmp_path, max_read_bytes=100)
     with pytest.raises(FileTooLargeError):
         guard.read_text("big.txt")
+
+
+def test_pathguard_blocks_git_directory(tmp_path: Path):
+    """Verifies that PathGuard strictly blocks all direct, nested, and case-variant .git accesses."""
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    (git_dir / "config").write_text("[core]\n", encoding="utf-8")
+    hooks = git_dir / "hooks"
+    hooks.mkdir()
+    (hooks / "pre-commit").write_text("#!/bin/sh\n", encoding="utf-8")
+
+    sub_repo = tmp_path / "sub" / ".git"
+    sub_repo.mkdir(parents=True)
+    (sub_repo / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+
+    guard = PathGuard(tmp_path)
+
+    # 1. Direct .git paths
+    with pytest.raises(GitDirectoryAccessError):
+        guard.safe_path(".git")
+
+    with pytest.raises(GitDirectoryAccessError):
+        guard.safe_path(".git/config")
+
+    with pytest.raises(GitDirectoryAccessError):
+        guard.read_text(".git/config")
+
+    with pytest.raises(GitDirectoryAccessError):
+        guard.safe_path(".git/hooks/pre-commit")
+
+    # 2. Case variations (especially critical on Windows)
+    with pytest.raises(GitDirectoryAccessError):
+        guard.safe_path(".GIT/config")
+
+    with pytest.raises(GitDirectoryAccessError):
+        guard.safe_path(".Git/hooks/pre-commit")
+
+    # 3. Subdirectory nested .git
+    with pytest.raises(GitDirectoryAccessError):
+        guard.safe_path("sub/.git/HEAD")
+
+    # 4. Traversal resolution landing on .git
+    with pytest.raises(GitDirectoryAccessError):
+        guard.safe_path("sub/../.git/config")
+
+    # 5. Traversal escaping root targeting .git
+    with pytest.raises(PathTraversalError):
+        guard.safe_path("../../.git")
+

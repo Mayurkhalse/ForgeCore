@@ -400,3 +400,189 @@ def test_cli_approve_interactive_confirmation(tmp_path: Path, monkeypatch: pytes
     assert res_yes.exit_code == 0
     assert "Successfully approved test command(s)" in res_yes.stdout
     assert trust_mgr.is_approved(project_root, {"test": "pytest -q"}) is True
+
+
+def test_build_sanitized_subprocess_env_strips_secrets(tmp_path: Path) -> None:
+    """Verifies that subprocess environment scrubbing completely removes all API keys and secrets."""
+    from sarthi.core.verify.trust import build_sanitized_subprocess_env
+
+    dirty_env = {
+        "PATH": "C:\\Windows\\System32;C:\\Python313",
+        "SYSTEMROOT": "C:\\Windows",
+        "ANTHROPIC_API_KEY": "sk-ant-sensitive123456",
+        "GEMINI_API_KEY": "AIzaSySensitive789",
+        "OPENAI_API_KEY": "sk-proj-supersecret",
+        "AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "GITHUB_TOKEN": "ghp_1234567890abcdef",
+        "DATABASE_PASSWORD": "mypassword123",
+        "SSH_AUTH_SOCK": "/tmp/ssh.sock",
+        "RANDOM_USER_TOKEN": "tok_abcdef",
+        "TEMP": "C:\\Temp",
+    }
+
+    clean_env = build_sanitized_subprocess_env(tmp_path, base_env=dirty_env)
+
+    # Allowlisted variables preserved
+    assert clean_env["PATH"] == dirty_env["PATH"]
+    assert clean_env["SYSTEMROOT"] == dirty_env["SYSTEMROOT"]
+    assert clean_env["TEMP"] == dirty_env["TEMP"]
+    assert clean_env["PYTHONPATH"] == str(tmp_path.resolve())
+    assert clean_env["PYTHONDONTWRITEBYTECODE"] == "1"
+
+    # All credentials and keys strictly scrubbed
+    assert "ANTHROPIC_API_KEY" not in clean_env
+    assert "GEMINI_API_KEY" not in clean_env
+    assert "OPENAI_API_KEY" not in clean_env
+    assert "AWS_SECRET_ACCESS_KEY" not in clean_env
+    assert "GITHUB_TOKEN" not in clean_env
+    assert "DATABASE_PASSWORD" not in clean_env
+    assert "SSH_AUTH_SOCK" not in clean_env
+    assert "RANDOM_USER_TOKEN" not in clean_env
+
+
+def test_test_runner_subprocess_strips_secrets(tmp_path: Path, monkeypatch) -> None:
+    """Verifies that TestRunner executes tests under a sanitized environment without provider keys."""
+    # Seed secrets in the host environment
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-should-never-leak")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-should-never-leak")
+    monkeypatch.setenv("SUPER_SECRET_TOKEN", "sensitive-token-val")
+
+    project_dir = tmp_path / "test_proj"
+    project_dir.mkdir()
+    (project_dir / "tests").mkdir()
+
+    # The test asserts that secrets are NOT present in its os.environ
+    test_file = project_dir / "tests" / "test_env_isolation.py"
+    test_file.write_text(
+        "import os\n"
+        "def test_secrets_not_inherited():\n"
+        "    assert 'ANTHROPIC_API_KEY' not in os.environ\n"
+        "    assert 'OPENAI_API_KEY' not in os.environ\n"
+        "    assert 'SUPER_SECRET_TOKEN' not in os.environ\n",
+        encoding="utf-8",
+    )
+
+    trust_mgr = CommandTrustManager(config_dir=tmp_path / "trust_store")
+    trust_mgr.approve(project_dir, {"test": "pytest -q"})
+
+    runner = TestRunner(trust_mgr=trust_mgr)
+    ctx = RunContext(
+        project_root=project_dir,
+        config=ProjectConfig(project_name="test_proj"),
+        active_layers=["universal"],
+        task="verify",
+        task_type="test",
+        all_rules=[],
+    )
+
+    findings = runner.run(ctx, [])
+    # If secrets leaked, the assertion failed and created a finding
+    assert len(findings) == 0, f"Test failed with finding: {findings[0].message if findings else ''}"
+
+
+def test_eslint_runner_subprocess_sanitizes_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verifies SEC-01B: ESLintRunner passes a sanitized environment devoid of provider credentials."""
+    import subprocess
+
+    from sarthi.core.verify.runners.eslint import ESLintRunner
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-sensitive-leak-test")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-sensitive-leak-test")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSySensitiveGeminiKey")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+
+    project_dir = tmp_path / "js_proj"
+    project_dir.mkdir()
+    js_file = project_dir / "index.js"
+    js_file.write_text("console.log('test');\n", encoding="utf-8")
+
+    captured_env: dict[str, str] = {}
+
+    def mock_subprocess_run(cmd, **kwargs):
+        nonlocal captured_env
+        captured_env = kwargs.get("env", {})
+        return subprocess.CompletedProcess(cmd, 0, stdout="[]", stderr="")
+
+    monkeypatch.setattr("subprocess.run", mock_subprocess_run)
+
+    runner = ESLintRunner()
+    # Stub binary check to return a simulated eslint
+    monkeypatch.setattr(runner, "_find_binary", lambda ctx: ["eslint"])
+
+    ctx = RunContext(
+        project_root=project_dir,
+        config=ProjectConfig(project_name="js_proj"),
+        active_layers=["react"],
+        task="verify",
+        task_type="lint",
+        all_rules=[],
+    )
+
+    runner.run(ctx, [js_file])
+
+    assert captured_env is not None
+    assert len(captured_env) > 0
+    # Provider secrets and tokens must be completely scrubbed
+    assert "ANTHROPIC_API_KEY" not in captured_env
+    assert "OPENAI_API_KEY" not in captured_env
+    assert "GEMINI_API_KEY" not in captured_env
+    assert "AWS_SECRET_ACCESS_KEY" not in captured_env
+    # Essential runtime variables must remain
+    assert "PATH" in captured_env
+    if sys.platform == "win32":
+        assert "SYSTEMROOT" in captured_env
+
+
+def test_semgrep_runner_subprocess_sanitizes_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verifies SEC-01B: SemgrepRunner passes a sanitized environment devoid of provider credentials."""
+    import subprocess
+
+    from sarthi.core.verify.runners.semgrep import SemgrepRunner
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-sensitive-leak-test")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-sensitive-leak-test")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSySensitiveGeminiKey")
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp_1234567890abcdef")
+
+    project_dir = tmp_path / "py_proj"
+    project_dir.mkdir()
+    py_file = project_dir / "app.py"
+    py_file.write_text("x = 1\n", encoding="utf-8")
+
+    rule_file = project_dir / "rule.yaml"
+    rule_file.write_text("rules: []\n", encoding="utf-8")
+
+    captured_envs: list[dict[str, str]] = []
+
+    def mock_subprocess_run(cmd, **kwargs):
+        captured_envs.append(kwargs.get("env", {}))
+        return subprocess.CompletedProcess(cmd, 0, stdout='{"results": []}', stderr="")
+
+    monkeypatch.setattr("subprocess.run", mock_subprocess_run)
+
+    runner = SemgrepRunner()
+    monkeypatch.setattr(runner, "available", lambda ctx: True)
+    monkeypatch.setattr(runner, "_get_rule_configs", lambda ctx: [rule_file])
+
+    ctx = RunContext(
+        project_root=project_dir,
+        config=ProjectConfig(project_name="py_proj"),
+        active_layers=["universal"],
+        task="verify",
+        task_type="lint",
+        all_rules=[],
+    )
+
+    runner.run(ctx, [py_file])
+
+    assert len(captured_envs) > 0
+    for env in captured_envs:
+        assert "ANTHROPIC_API_KEY" not in env
+        assert "OPENAI_API_KEY" not in env
+        assert "GEMINI_API_KEY" not in env
+        assert "GITHUB_TOKEN" not in env
+        assert "PATH" in env
+        if sys.platform == "win32":
+            assert "SYSTEMROOT" in env
+
+

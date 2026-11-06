@@ -19,12 +19,18 @@ class SecretFileAccessError(PathGuardError):
     pass
 
 
+class GitDirectoryAccessError(PathGuardError):
+    """Raised when an access targets a .git directory or files within it."""
+    pass
+
+
 class FileTooLargeError(PathGuardError):
     """Raised when reading a file that exceeds the size limit."""
     pass
 
 
 DEFAULT_SECRET_PATTERNS = [
+    ".git",
     ".env",
     ".env.*",
     "*.pem",
@@ -70,10 +76,10 @@ class PathGuard:
                 return True
         return False
 
-    def safe_path(self, target: Path | str, allow_secret: bool = False) -> Path:
+    def safe_path(self, target: Path | str, allow_secret: bool = False, allow_git: bool = False) -> Path:
         """
         Resolves the target path and verifies it strictly resides within project root.
-        Denies path escapes, symlinks leaving root, and sensitive secret files.
+        Denies path escapes, symlinks leaving root, internal VCS (.git) access, and sensitive secret files.
         """
         p = Path(target)
         if not p.is_absolute():
@@ -83,9 +89,13 @@ class PathGuard:
 
         # Check containment within root
         try:
-            p.relative_to(self.root)
+            rel = p.relative_to(self.root)
         except ValueError:
             raise PathTraversalError(f"Access denied: '{target}' resolves outside project root '{self.root}'")
+
+        # Block internal VCS (.git) directory and any components within it
+        if not allow_git and any(part.lower() == ".git" for part in rel.parts):
+            raise GitDirectoryAccessError(f"Access denied: '.git' directory access is forbidden: '{target}'")
 
         if not allow_secret and self.is_secret_file(p):
             raise SecretFileAccessError(f"Access denied: '{p.name}' is flagged as a sensitive secret file")
