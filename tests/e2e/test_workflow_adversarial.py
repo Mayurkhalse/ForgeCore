@@ -21,12 +21,13 @@ from forgecore.core.verify.trust import (
 )
 from forgecore.core.verify.verifier import Verifier
 from forgecore.mcp.tools import MCPToolHandlers
-from tests.e2e.fixtures import (
+
+from .fixtures import (
     FAILING_TEST_PATCH,
     MALFORMED_PATCH,
     create_login_api_fixture,
 )
-from tests.e2e.host_adapter import DeterministicHostAgentAdapter
+from .host_adapter import DeterministicHostAgentAdapter
 
 
 def test_scenario_1_prompt_injection(tmp_path: Path):

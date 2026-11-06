@@ -3,3 +3,4 @@
 
 # ECC snapshot resources must strictly preserve exact LF byte integrity
 resources/ecc/** text eol=lf
+

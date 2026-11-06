@@ -10,9 +10,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from forgecore.core.verify.trust import CommandTrustManager
-from tests.e2e.fixtures import VALID_RATE_LIMIT_PATCH, create_login_api_fixture
-from tests.e2e.host_adapter import DeterministicHostAgentAdapter
-from tests.e2e.reporter import E2EScenarioReport
+
+from .fixtures import VALID_RATE_LIMIT_PATCH, create_login_api_fixture
+from .host_adapter import DeterministicHostAgentAdapter
+from .reporter import E2EScenarioReport
 
 GOLDEN_PROMPT = (
     "Add rate limiting to the login API. Follow the existing project architecture, "
