@@ -230,6 +230,7 @@ class MCPToolHandlers:
                 rules_data.append(entry)
 
             # Query Unified Multi-Provider Knowledge (ECC + Native + Workspace)
+            from forgecore.core.resources.compiler import ContextCompiler
             from forgecore.core.resources.models import ResourceType
 
             unified_res, unified_trace, conflict_report = self.unified_selector.select_resources(
@@ -240,6 +241,17 @@ class MCPToolHandlers:
                 max_tokens=3000,
                 max_resources=max_rules,
             )
+
+            # Compile unified markdown instructions
+            compiler = ContextCompiler(selector=self.unified_selector)
+            compiled_ctx = compiler.compile_context(
+                active_layers=active_layers,
+                task=task,
+                task_type=task_type,
+                config=config,
+                max_tokens=3000,
+            )
+            instructions_md = compiler.render_markdown_instructions(compiled_ctx)
 
             skills_data = []
             provenance_data = []
@@ -267,6 +279,7 @@ class MCPToolHandlers:
                 "truncated": truncated,
                 "rules": rules_data,
                 "skills": skills_data,
+                "instructions_markdown": instructions_md,
                 "conflict_report": {
                     "total_conflicts": conflict_report.total_conflicts,
                     "resolved": [c.model_dump(mode="json") for c in conflict_report.resolved],

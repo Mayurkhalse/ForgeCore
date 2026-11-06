@@ -97,6 +97,10 @@ def create_server(standards_dir: Path | str | None = None) -> MCPServer:
     def get_workflow_resource(task_type: str) -> str:
         return resources_mgr.get_workflow_template(task_type)
 
+    @server.resource("forgecore://ecc/{resource_id}", description="Everything Claude Code (ECC) bundled knowledge resource")
+    def get_ecc_resource(resource_id: str) -> str:
+        return resources_mgr.get_ecc_resource(resource_id)
+
     # 3. Register Prompts
     @server.prompt("new-feature", description="Prompt template for implementing a new feature with ForgeCore discipline")
     def prompt_new_feature(task: str) -> str:

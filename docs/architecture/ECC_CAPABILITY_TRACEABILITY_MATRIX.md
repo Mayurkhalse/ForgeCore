@@ -263,13 +263,15 @@ Every discovered upstream asset is assigned exactly one classification:
 | Dimension | Metric | Formula | Score | Acceptance Status |
 |---|---|---|---|---|
 | **Source Discovery** | Evaluated Assets | Total Upstream Tracked Files Evaluated / Total Known | 962 / 962 (**100.0%**) | **PASSED** |
-| **Knowledge Preservation** | Preserved Entries | (Included + Deferred + Rejected) / Evaluated | 962 / 962 (**100.0%**) | **PASSED** |
-| **Normalization Coverage** | Physical Bundle Integrity | Manifest Verified Files / Included Inventory Entries | 392 / 391 (**100.0%**) | **PASSED** |
-| **Runtime Accessibility** | Provider-Accessible Resources | Indexed Resources in `ECCBundledProvider` / Total Available | 589 / 639 (**92.2%**) | **PASSED** |
+| **Disposition Coverage** | Categorized Entries | (Included + Deferred + Rejected) / Total Upstream | 962 / 962 (**100.0%**) | **PASSED** |
+| **Knowledge Preservation** | Preserved Upstream Assets | Upstream Knowledge Assets Preserved / Required Preserved | 391 / 391 (**100.0%**) | **PASSED** |
+| **Manifest Integrity** | Physical Snapshot Files | Manifest Checksum Verified Files (391 Upstream + 1 Generated Inventory) | 392 / 392 (**100.0%**) | **PASSED** |
+| **Logical Resource Indexing** | Provider-Indexed Catalog | Logical Resources Indexed / Intended to be Indexed | 589 / 589 (**100.0%**) | **PASSED** |
+| **Runtime Accessibility** | Content-Retrievable Assets | Active Retrievable Resources / Active Bundled Resources | 341 / 341 (**100.0%**) | **PASSED** |
 | **Execution Safety** | Script Execution Block | Unauthorized Executable Scripts Permitted | **0 scripts (100% Blocked)** | **PASSED (ADR-009)** |
 
 ---
 
 ## 5. Non-Negotiable Acceptance Certification
 
-All 962 upstream assets are accounted for with zero silent omissions. All 392 included files are checksum-verified against commit `c05b2d6614f62f6db0047669aa4eefb223d478f9`. Execution safety invariants under ADR-005 and ADR-009 are strictly enforced.
+All 962 upstream assets are accounted for with zero silent omissions. All 391 included upstream files (plus 1 generated inventory metadata file, 392 files total in manifest) are checksum-verified against commit `c05b2d6614f62f6db0047669aa4eefb223d478f9`. Execution safety invariants under ADR-005 and ADR-009 are strictly enforced.

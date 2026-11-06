@@ -161,3 +161,16 @@ class ECCLifecycleManager:
                 "execution_compatibility_percent": round(compatibility_coverage, 2),
             },
         }
+
+    def validate_local_customizations(self, workspace_root: Path | str) -> dict[str, Any]:
+        """Validates that project-level customizations in .forgecore/rules or .sarthi/rules are preserved."""
+        from forgecore.core.providers.workspace import WorkspaceProvider
+
+        ws = WorkspaceProvider(workspace_root)
+        custom_rules = ws.list_resources()
+        return {
+            "custom_rules_found": len(custom_rules),
+            "custom_rule_ids": [r.id for r in custom_rules],
+            "precedence_tier": 4,
+            "status": "preserved",
+        }

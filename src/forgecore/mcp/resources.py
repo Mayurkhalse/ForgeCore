@@ -51,3 +51,24 @@ class MCPResources:
     def get_workflow_template(self, task_type: str) -> str:
         _, body = self.workflow_engine.get_raw_workflow(task_type)
         return body
+
+    def get_ecc_resource(self, resource_id: str) -> str:
+        """Retrieves raw content and metadata for an Everything Claude Code (ECC) resource."""
+        from forgecore.core.providers.ecc import ECCBundledProvider
+
+        provider = ECCBundledProvider()
+        provider.initialize()
+        res = provider.get_resource(resource_id)
+        if not res:
+            return json.dumps({"error": f"ECC resource '{resource_id}' not found"})
+        content = provider.get_content(res)
+        return json.dumps({
+            "id": res.id,
+            "type": res.type.value,
+            "name": res.name,
+            "description": res.description,
+            "source_path": res.source_path,
+            "source_commit": res.source_commit,
+            "license": res.license,
+            "content": content,
+        }, indent=2)

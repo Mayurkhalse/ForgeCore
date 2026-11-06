@@ -141,6 +141,13 @@ def test_ecc_e2e_fastapi_postgresql_integration(tmp_path: Path):
     skill_ids = [s["id"] for s in skills]
     assert any("fastapi-patterns" in sid or "postgres-patterns" in sid for sid in skill_ids)
 
+    # Verify compiled markdown instructions returned directly from MCP tool
+    assert "instructions_markdown" in standards_res
+    inst_md = standards_res["instructions_markdown"]
+    assert "Mandatory Security Invariants" in inst_md
+    assert "Mandatory Core Engineering Contract" in inst_md
+    assert "Upstream ECC Engineering Guidance" in inst_md
+
     # Verify irrelevant knowledge exclusion
     assert not any("react" in sid for sid in skill_ids)
     assert not any("flutter" in sid for sid in skill_ids)

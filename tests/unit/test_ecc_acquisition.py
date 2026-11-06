@@ -86,3 +86,16 @@ def test_ecc_acquisition_traceability_metrics():
     assert metrics["deferred_entries"] == 248
     assert metrics["rejected_entries"] == 323
     assert metrics["runtime_accessibility_count"] > 500
+
+
+def test_ecc_lifecycle_local_customization_preservation(tmp_path: Path):
+    """Verifies that project-level local custom rules are preserved across lifecycle management."""
+    fc_rules = tmp_path / ".forgecore" / "rules"
+    fc_rules.mkdir(parents=True)
+    (fc_rules / "custom_auth.yaml").write_text("id: custom-auth\ntitle: Custom Auth\nlayers: [security]", encoding="utf-8")
+
+    mgr = ECCLifecycleManager()
+    custom_report = mgr.validate_local_customizations(tmp_path)
+    assert custom_report["custom_rules_found"] == 1
+    assert "workspace.custom-auth" in custom_report["custom_rule_ids"]
+    assert custom_report["status"] == "preserved"

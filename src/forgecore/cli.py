@@ -126,6 +126,30 @@ def standards(
         table.add_row(f"[{sev_color}]{r.severity.value.upper()}[/{sev_color}]", r.id, r.layer, body)
 
     console.print(table)
+
+    # Query and display Unified ECC Knowledge & Skills
+    from forgecore.core.resources.models import ResourceType
+    from forgecore.core.resources.selector import UnifiedResourceSelector
+
+    unified_selector = UnifiedResourceSelector()
+    unified_res, trace, conflict_report = unified_selector.select_resources(
+        active_layers=active_layers,
+        task=task,
+        task_type=task_type,
+        config=config,
+        max_tokens=3000,
+    )
+    ecc_skills = [r for r in unified_res if r.type == ResourceType.SKILL]
+    if ecc_skills:
+        console.print(f"[bold cyan]Upstream ECC Procedural Skills Available:[/bold cyan] {len(ecc_skills)}\n")
+        skill_table = Table(show_lines=True)
+        skill_table.add_column("Tier", width=8)
+        skill_table.add_column("ID", width=32)
+        skill_table.add_column("Skill Name & Description")
+        for s in ecc_skills:
+            skill_table.add_row("Tier 6", s.id, f"[bold]{s.name}[/bold]\n{s.description}")
+        console.print(skill_table)
+
     if hint:
         console.print(f"[dim]{hint}[/dim]\n")
 

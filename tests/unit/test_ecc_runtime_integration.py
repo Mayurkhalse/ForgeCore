@@ -79,3 +79,17 @@ def test_mcp_get_rule_retrieves_ecc_resources():
     assert ecc_skill["id"] == "ecc.skill.tdd-workflow"
     assert ecc_skill["provider"] == "ecc"
     assert len(ecc_skill["content"]) > 1000
+
+
+def test_mcp_resource_read_ecc():
+    """Verifies reading an ECC resource directly through MCPResources."""
+    import json
+
+    from forgecore.mcp.resources import MCPResources
+
+    res_mgr = MCPResources()
+    raw = res_mgr.get_ecc_resource("ecc.skill.fastapi-patterns")
+    data = json.loads(raw)
+    assert data["id"] == "ecc.skill.fastapi-patterns"
+    assert "Fastapi" in data["name"]
+    assert len(data["content"]) > 500

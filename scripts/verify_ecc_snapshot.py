@@ -83,7 +83,7 @@ def verify_snapshot(repo_root: Path | None = None) -> dict[str, bool]:
         for file in files:
             full = Path(root) / file
             rel = full.relative_to(ecc_dir).as_posix()
-            if rel != "manifest.json" and rel not in manifest_files:
+            if rel not in ("manifest.json", "traceability-matrix.json") and rel not in manifest_files:
                 unexpected_files.append(rel)
     results["4_no_unexpected_files"] = len(unexpected_files) == 0
 
