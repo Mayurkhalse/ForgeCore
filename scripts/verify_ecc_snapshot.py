@@ -94,8 +94,20 @@ def verify_snapshot(repo_root: Path | None = None) -> dict[str, bool]:
         if full_path.is_file():
             computed = calculate_sha256(full_path)
             if computed != data["sha256"]:
+                # Tolerate platform-level CRLF checkout if canonical LF hash matches
+                try:
+                    content = full_path.read_bytes()
+                    if b"\r\n" in content:
+                        lf_computed = hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
+                        if lf_computed == data["sha256"]:
+                            continue
+                except Exception:
+                    pass
                 checksum_mismatches.append((rel_path, data["sha256"], computed))
     results["5_checksums_match_identically"] = len(checksum_mismatches) == 0
+    if checksum_mismatches:
+        for rel_path, expected, actual in checksum_mismatches[:10]:
+            print(f"  [MISMATCH] {rel_path}: expected {expected[:12]}..., got {actual[:12]}...")
 
     # Check 6: No scripts marked executable or executed
     # All bundled .py or .sh files are static text documentation

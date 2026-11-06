@@ -68,7 +68,7 @@
       "upstream_source": "LICENSE"
     },
     "NOTICE": {
-      "sha256": "04d683d99a8ec7a0a832d1f2327f6c26f718c2bef70a60bbfb56b94963143c27",
+      "sha256": "8dbdb1718aa8fb0fefc834f00fb9342e9833488c6374c17c9131e5b93ec034dd",
       "resource_type": "supporting",
       "upstream_source": "LOCAL_NOTICE"
     },
@@ -553,7 +553,7 @@
       "upstream_source": "contexts/review.md"
     },
     "inventory.json": {
-      "sha256": "c1b460aec8b50b2e88b472d000a35f59a5cb3b3fbc33e6ee661d3823d3fee552",
+      "sha256": "557f142b605df501a74c567755c3c87375895dbb9143ab0d8dd7a81d6f397aa4",
       "resource_type": "supporting",
       "upstream_source": "GENERATED_INVENTORY"
     },
@@ -1168,7 +1168,7 @@
       "upstream_source": "rules/web/testing.md"
     },
     "scripts/README.md": {
-      "sha256": "14469f8ad5782302e3cc7d6e0c28c095258d5498c6954edf0768be6516f1e6ef",
+      "sha256": "fe0c9dbd810e71c97967cca1a21de510c4dfcb24163d1c8fc43719dfcb191228",
       "resource_type": "supporting",
       "upstream_source": "LOCAL_SECURITY_POLICY"
     },

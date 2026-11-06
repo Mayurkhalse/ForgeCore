@@ -1,0 +1,5 @@
+# Enforce reproducible LF line endings across all platforms
+* text=auto eol=lf
+
+# ECC snapshot resources must strictly preserve exact LF byte integrity
+resources/ecc/** text eol=lf
