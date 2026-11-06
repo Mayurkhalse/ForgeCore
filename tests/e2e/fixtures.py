@@ -37,8 +37,90 @@ class FastAPI(Starlette):
         return decorator
 '''
 
-FASTAPI_TESTCLIENT_SHIM = '''"""Lightweight test client shim over Starlette."""
-from starlette.testclient import TestClient
+FASTAPI_TESTCLIENT_SHIM = '''"""Lightweight offline test client shim avoiding external sockets and event loops."""
+from __future__ import annotations
+
+import inspect
+import json
+from typing import Any
+
+
+class _TestResponse:
+    def __init__(self, status_code: int, json_data: Any = None, text: str = "") -> None:
+        self.status_code = status_code
+        self._json_data = json_data
+        self.text = text
+
+    def json(self) -> Any:
+        return self._json_data
+
+
+class _MockClient:
+    def __init__(self, host: str = "127.0.0.1") -> None:
+        self.host = host
+
+
+class _MockRequest:
+    def __init__(self, json_data: Any = None) -> None:
+        self._json_data = json_data
+        self.client = _MockClient("127.0.0.1")
+
+    async def json(self) -> Any:
+        if self._json_data is None:
+            raise ValueError("No JSON payload")
+        return self._json_data
+
+
+def _run_coro_sync(coro: Any) -> Any:
+    stack = [coro]
+    val = None
+    while stack:
+        top = stack[-1]
+        try:
+            nxt = top.send(val)
+            if inspect.iscoroutine(nxt):
+                stack.append(nxt)
+                val = None
+            else:
+                val = nxt
+        except StopIteration as e:
+            stack.pop()
+            val = e.value
+    return val
+
+
+class TestClient:
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    def get(self, path: str, **kwargs: Any) -> _TestResponse:
+        return self._dispatch("GET", path, **kwargs)
+
+    def post(self, path: str, json: Any = None, **kwargs: Any) -> _TestResponse:
+        return self._dispatch("POST", path, json_data=json, **kwargs)
+
+    def _dispatch(self, method: str, path: str, json_data: Any = None, **kwargs: Any) -> _TestResponse:
+        for route in getattr(self.app, "routes", []):
+            if getattr(route, "path", None) == path and method in getattr(route, "methods", []):
+                handler = route.endpoint
+                req = _MockRequest(json_data=json_data)
+                if inspect.iscoroutinefunction(handler):
+                    resp = _run_coro_sync(handler(req))
+                else:
+                    resp = handler(req)
+                body = getattr(resp, "body", b"")
+                status_code = getattr(resp, "status_code", 200)
+                try:
+                    parsed = json.loads(body.decode("utf-8")) if body else None
+                except Exception:
+                    parsed = None
+                return _TestResponse(
+                    status_code=status_code,
+                    json_data=parsed,
+                    text=body.decode("utf-8", errors="ignore"),
+                )
+        return _TestResponse(status_code=404, json_data={"detail": "Not Found"})
+
 
 __all__ = ["TestClient"]
 '''
