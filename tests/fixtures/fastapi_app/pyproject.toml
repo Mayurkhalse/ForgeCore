@@ -5,3 +5,10 @@ dependencies = [
     "fastapi>=0.110.0",
     "uvicorn>=0.28.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+extend-exclude = ["fastapi"]
+
