@@ -366,5 +366,43 @@ def test_checklist_cap_and_ranking(tmp_path: Path) -> None:
     assert "LOW-001" not in returned_ids
 
 
+def test_verifier_fail_on_override_and_backward_compatibility(tmp_path: Path):
+    """Verifies Verifier fail_on_override parameter and backward compatibility with config."""
+    # Create minimal project with a hardcoded secret (CRITICAL) and a ruff violation (HIGH)
+    src_dir = tmp_path / "src"
+    src_dir.mkdir(parents=True)
+    (src_dir / "app.py").write_text(
+        "import os\n"
+        "AWS_KEY = 'AKIA1234567890ABCDEF'\n",
+        encoding="utf-8",
+    )
+
+    # 1. Default config: fail_on defaults to HIGH (both HIGH and CRITICAL block)
+    verifier = Verifier(tmp_path)
+    report = verifier.verify(scope="all")
+    assert report.status == "failed"
+
+    # 2. Config says fail_on: critical (normal behavior outside eval)
+    sarthi_dir = tmp_path / ".sarthi"
+    sarthi_dir.mkdir(parents=True, exist_ok=True)
+    (sarthi_dir / "project.yaml").write_text(
+        "project_name: test\nverify:\n  fail_on: critical\n",
+        encoding="utf-8",
+    )
+    verifier_compat = Verifier(tmp_path)
+    report_compat = verifier_compat.verify(scope="all")
+    # CRITICAL finding still blocks
+    assert report_compat.status == "failed"
+
+    # 3. Explicit override in constructor
+    verifier_override = Verifier(tmp_path, fail_on_override=Severity.CRITICAL)
+    assert verifier_override.fail_on_override == Severity.CRITICAL
+
+    # 4. Explicit override string conversion
+    verifier_str_override = Verifier(tmp_path, fail_on_override="high")
+    assert verifier_str_override.fail_on_override == Severity.HIGH
+
+
+
 
 

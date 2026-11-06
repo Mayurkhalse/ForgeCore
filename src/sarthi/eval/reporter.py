@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 from sarthi.eval.experiment import ExperimentResult
@@ -13,9 +14,22 @@ class EvaluationReporter:
 
     @staticmethod
     def generate_json_report(results: list[ExperimentResult]) -> str:
-        """Serializes experiment results into structured JSON."""
+        """Serializes experiment results into structured JSON with provenance and statistical disclaimer."""
+        commit_sha = results[0].commit_sha if results else None
+        ecc_version = results[0].ecc_version if results else "v2.2.3"
+        timestamp = results[0].timestamp if results else time.time()
+        disclaimer = (
+            "Statistical Disclaimer: Single-trial paired comparison (n=1). "
+            "Evaluation results demonstrate directional performance in benchmark tasks "
+            "but do not establish formal statistical significance."
+        )
+
         data = {
             "version": "1.0.0",
+            "timestamp": timestamp,
+            "commit_sha": commit_sha,
+            "ecc_version": ecc_version,
+            "statistical_disclaimer": disclaimer,
             "total_scenarios": len(results),
             "sarthi_clean_passes": sum(1 for r in results if r.sarthi.verify_report.status == "passed"),
             "baseline_clean_passes": sum(1 for r in results if r.baseline.verify_report.status == "passed"),
@@ -26,13 +40,27 @@ class EvaluationReporter:
 
     @staticmethod
     def generate_markdown_report(results: list[ExperimentResult]) -> str:
-        """Renders comprehensive Markdown evaluation scorecard."""
+        """Renders comprehensive Markdown evaluation scorecard with provenance and statistical disclaimer."""
         total = len(results)
         sarthi_passes = sum(1 for r in results if r.sarthi.verify_report.status == "passed")
         base_passes = sum(1 for r in results if r.baseline.verify_report.status == "passed")
         total_findings_delta = sum(r.findings_delta for r in results)
 
+        commit_sha = results[0].commit_sha if (results and results[0].commit_sha) else "unknown"
+        ecc_version = results[0].ecc_version if results else "v2.2.3"
+        raw_ts = results[0].timestamp if (results and results[0].timestamp) else time.time()
+        ts_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(raw_ts))
+
         md = "# Sarthi Layer 4: Live AI Coding Agent Evaluation Report\n\n"
+        md += "## Provenance & Metadata\n\n"
+        md += f"- **Evaluation Timestamp:** `{ts_str}`\n"
+        md += f"- **Repository Commit SHA:** `{commit_sha}`\n"
+        md += f"- **ECC Upstream Version:** `{ecc_version}`\n\n"
+        md += (
+            "> **Statistical Disclaimer:** Single-trial paired comparison (n=1). "
+            "Evaluation results demonstrate directional performance in benchmark tasks "
+            "but do not establish formal statistical significance.\n\n"
+        )
         md += "## 1. Executive Summary & Comparative Scorecard\n\n"
         md += f"- **Total Evaluated Scenarios:** {total}\n"
         md += f"- **Sarthi Clean Pass Rate:** {sarthi_passes}/{total} ({((sarthi_passes/total)*100) if total else 0:.1f}%)\n"

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from sarthi.core.pathguard import (
+    GitDirectoryAccessError,
     PathGuard,
     PathGuardError,
     PathTraversalError,
@@ -139,7 +140,7 @@ class SandboxedAgentLoop:
                 items = []
                 for p in sorted(target.iterdir()):
                     # Avoid displaying noisy or internal directories
-                    if p.name in {".git", "__pycache__", ".pytest_cache", ".ruff_cache"}:
+                    if p.name.lower() in {".git", "__pycache__", ".pytest_cache", ".ruff_cache"}:
                         continue
                     suffix = "/" if p.is_dir() else ""
                     items.append(f"{p.name}{suffix}")
@@ -152,7 +153,7 @@ class SandboxedAgentLoop:
             else:
                 return ToolResult(tool_call_id=call.id, output=f"Unknown tool '{tool_name}'", is_error=True)
 
-        except (PathTraversalError, SecretFileAccessError, PathGuardError) as e:
+        except (PathTraversalError, SecretFileAccessError, GitDirectoryAccessError, PathGuardError) as e:
             return ToolResult(tool_call_id=call.id, output=f"SECURITY_ERROR: {e}", is_error=True)
         except Exception as e:
             return ToolResult(tool_call_id=call.id, output=f"TOOL_ERROR: {e}", is_error=True)
@@ -182,6 +183,19 @@ class SandboxedAgentLoop:
                 loop_error = str(e)
                 break
 
+            # Pre-dispatch budget reservation
+            model_name = getattr(provider, "model", config.model_name)
+            est_input_tokens = sum(len(m.content) for m in messages) // 4 + 200
+            allowed, reservation_reason = budget_manager.can_dispatch_call(
+                model=model_name,
+                max_tokens=config.max_tokens_per_call,
+                estimated_input_tokens=est_input_tokens,
+                config=config,
+            )
+            if not allowed:
+                loop_error = reservation_reason
+                break
+
             try:
                 resp = provider.generate(
                     messages=messages,
@@ -193,12 +207,21 @@ class SandboxedAgentLoop:
                 break
 
             try:
-                # Track usage and enforce financial / token budget
-                model_name = getattr(provider, "model", config.model_name)
+                # Track usage and enforce financial / token budget with defensive fallbacks
+                p_tokens = (
+                    resp.prompt_tokens
+                    if (resp.prompt_tokens is not None and resp.prompt_tokens >= 0)
+                    else est_input_tokens
+                )
+                c_tokens = (
+                    resp.completion_tokens
+                    if (resp.completion_tokens is not None and resp.completion_tokens >= 0)
+                    else config.max_tokens_per_call
+                )
                 budget_manager.record_usage(
                     model=model_name,
-                    prompt_tokens=resp.prompt_tokens,
-                    completion_tokens=resp.completion_tokens,
+                    prompt_tokens=p_tokens,
+                    completion_tokens=c_tokens,
                     config=config,
                 )
             except BudgetExceededError as e:

@@ -85,3 +85,61 @@ def test_budget_manager_timeout_enforcement():
     assert exhausted is True
     assert "Wall-clock timeout exceeded" in (reason or "")
 
+
+def test_can_dispatch_call_pre_dispatch_reservation():
+    """Verifies FIN-01: worst-case reservation halts execution before dispatch."""
+    mgr = LiveEvalBudgetManager()
+    # Claude 3.5 Sonnet: $3/M in, $15/M out
+    # 1000 input tokens = $0.003
+    # 4000 output tokens = $0.060
+    # Worst-case cost per call = $0.063
+    config = LiveEvalConfig(cost_cap_usd=0.05, max_tokens_per_call=4000)
+
+    # 1. Budget of $0.05 cannot afford worst-case $0.063
+    allowed, reason = mgr.can_dispatch_call(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=4000,
+        estimated_input_tokens=1000,
+        config=config,
+    )
+    assert allowed is False
+    assert "Pre-dispatch budget reservation failed" in (reason or "")
+
+    # 2. Generous budget allows dispatch
+    generous_config = LiveEvalConfig(cost_cap_usd=5.00, max_tokens_per_call=4000)
+    allowed_ok, reason_ok = mgr.can_dispatch_call(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=4000,
+        estimated_input_tokens=1000,
+        config=generous_config,
+    )
+    assert allowed_ok is True
+    assert reason_ok is None
+
+    # 3. Token reservation check
+    tight_token_config = LiveEvalConfig(max_total_tokens=2000, cost_cap_usd=10.0)
+    allowed_tok, reason_tok = mgr.can_dispatch_call(
+        model="mock-model",
+        max_tokens=3000,
+        estimated_input_tokens=500,
+        config=tight_token_config,
+    )
+    assert allowed_tok is False
+    assert "Pre-dispatch token reservation failed" in (reason_tok or "")
+
+
+def test_record_usage_defensive_defaults():
+    """Verifies FIN-01: missing or None token counts safely use defensive defaults without crashing."""
+    mgr = LiveEvalBudgetManager()
+    mgr.record_usage(
+        model="claude-3-5-sonnet-20241022",
+        prompt_tokens=None,
+        completion_tokens=None,
+    )
+    summary = mgr.summary()
+    assert summary["prompt_tokens"] == 1000
+    assert summary["completion_tokens"] == 500
+    assert summary["total_tokens"] == 1500
+    assert summary["estimated_cost_usd"] > 0.0
+
+

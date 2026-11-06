@@ -9,6 +9,7 @@ from sarthi.core.detectors.base import SKIP_DIRS
 from sarthi.core.models import (
     Finding,
     RunContext,
+    Severity,
     SkippedCheck,
     VerifyReport,
 )
@@ -36,12 +37,16 @@ class Verifier:
         self,
         root: Path | str,
         trust_mgr: CommandTrustManager | None = None,
+        fail_on_override: Severity | str | None = None,
     ) -> None:
         self.root = Path(root).resolve()
         self.pathguard = PathGuard(self.root)
         self.context_builder = ContextBuilder(self.root)
         self.rule_loader = RuleLoader()
         self.trust_mgr = trust_mgr or CommandTrustManager()
+        if isinstance(fail_on_override, str):
+            fail_on_override = Severity(fail_on_override.lower())
+        self.fail_on_override = fail_on_override
 
     def _is_git_repo(self) -> bool:
         """Checks if the project root is inside a valid git repository."""
@@ -145,6 +150,7 @@ class Verifier:
         scope: str = "changed",
         checks: list[str] | None = None,
         timeout: float = 60.0,
+        fail_on_override: Severity | str | None = None,
     ) -> VerifyReport:
         start_time = time.perf_counter()
         deadline = start_time + timeout
@@ -310,7 +316,10 @@ class Verifier:
             summary[sev_key] = summary.get(sev_key, 0) + 1
 
         # Determine status
-        fail_on = config.verify.fail_on
+        override = fail_on_override if fail_on_override is not None else self.fail_on_override
+        if isinstance(override, str):
+            override = Severity(override.lower())
+        fail_on = override if override is not None else config.verify.fail_on
         blocking_findings = [f for f in findings if f.severity >= fail_on]
         required_skipped = [s for s in skipped if s.required]
 

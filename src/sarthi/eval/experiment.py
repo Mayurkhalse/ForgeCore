@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from sarthi.core.config import ConfigLoader
-from sarthi.core.models import VerifyReport
+from sarthi.core.models import Severity, VerifyReport
 from sarthi.core.verify.trust import CommandTrustManager
 from sarthi.core.verify.verifier import Verifier
 from sarthi.eval.agent import AgentTrajectory, SandboxedAgentLoop
@@ -59,6 +61,33 @@ class ConditionResult:
         }
 
 
+def get_current_commit_sha(repo_root: Path | None = None) -> str | None:
+    """Safely retrieves git commit SHA or None if unversioned."""
+    try:
+        cmd = ["git", "rev-parse", "HEAD"]
+        cwd = str(repo_root) if repo_root and repo_root.is_dir() else None
+        res = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True)
+        return res.stdout.strip() or None
+    except Exception:
+        return None
+
+
+def get_ecc_version(repo_root: Path | None = None) -> str:
+    """Safely extracts bundled ECC upstream version."""
+    try:
+        import json
+
+        base = repo_root or Path.cwd()
+        manifest_path = base / "resources" / "ecc" / "manifest.json"
+        if manifest_path.is_file():
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("upstream", {}).get("release_tag", "v2.2.3")
+    except Exception:
+        pass
+    return "v2.2.3"
+
+
 @dataclass
 class ExperimentResult:
     """Comparative outcome between Baseline and Sarthi-guided agent runs."""
@@ -69,6 +98,8 @@ class ExperimentResult:
     baseline: ConditionResult
     sarthi: ConditionResult
     timestamp: float = 0.0
+    commit_sha: str | None = None
+    ecc_version: str = "v2.2.3"
 
     @property
     def findings_delta(self) -> int:
@@ -92,6 +123,8 @@ class ExperimentResult:
             "baseline": self.baseline.to_dict(),
             "sarthi": self.sarthi.to_dict(),
             "timestamp": self.timestamp or time.time(),
+            "commit_sha": self.commit_sha,
+            "ecc_version": self.ecc_version,
         }
 
 
@@ -102,11 +135,19 @@ class ComparativeEvaluationHarness:
         """Pre-approves default/configured test commands in the ephemeral test workspace."""
         config_loader = ConfigLoader(workspace_root)
         cfg = config_loader.load()
-        if cfg.verify and cfg.verify.commands:
+        if cfg.verify and cfg.verify.commands and "test" in cfg.verify.commands:
             trust_mgr.approve(workspace_root, cfg.verify.commands)
         else:
-            # Default test command for python/pytest
-            trust_mgr.approve(workspace_root, {"tests": "pytest -q"})
+            if sys.platform == "win32":
+                venv_pytest = workspace_root / ".venv" / "Scripts" / "pytest.exe"
+            else:
+                venv_pytest = workspace_root / ".venv" / "bin" / "pytest"
+
+            if venv_pytest.is_file():
+                test_cmd = f"{venv_pytest} -q"
+            else:
+                test_cmd = "pytest -q"
+            trust_mgr.approve(workspace_root, {"test": test_cmd})
 
     def _execute_condition(
         self,
@@ -120,7 +161,7 @@ class ComparativeEvaluationHarness:
         start_t = time.perf_counter()
 
         # Ephemeral isolated trust store
-        trust_mgr = CommandTrustManager(workspace_root / ".eval_approvals.json")
+        trust_mgr = CommandTrustManager(workspace_root / ".eval_approvals")
         self._preapprove_test_commands(workspace_root, trust_mgr)
 
         budget_mgr = LiveEvalBudgetManager()
@@ -134,8 +175,8 @@ class ComparativeEvaluationHarness:
             config=config,
         )
 
-        # Deterministic verification of the workspace state
-        verifier = Verifier(workspace_root, trust_mgr=trust_mgr)
+        # Deterministic verification of the workspace state with immutable threshold (Severity.HIGH)
+        verifier = Verifier(workspace_root, trust_mgr=trust_mgr, fail_on_override=Severity.HIGH)
         verify_report = verifier.verify(scope="all", timeout=45.0)
 
         elapsed = time.perf_counter() - start_t
@@ -198,4 +239,6 @@ class ComparativeEvaluationHarness:
             baseline=res_baseline,
             sarthi=res_sarthi,
             timestamp=time.time(),
+            commit_sha=get_current_commit_sha(),
+            ecc_version=get_ecc_version(),
         )

@@ -43,18 +43,56 @@ class LiveEvalBudgetManager:
         output_cost = (completion_tokens / 1_000_000.0) * rates[1]
         return input_cost + output_cost
 
+    def can_dispatch_call(
+        self,
+        model: str,
+        max_tokens: int,
+        estimated_input_tokens: int = 1000,
+        config: LiveEvalConfig | None = None,
+    ) -> tuple[bool, str | None]:
+        """Validates that remaining budget can cover worst-case call expenditure before dispatch."""
+        if config is None:
+            return True, None
+
+        # 1. Elapsed time check
+        if self.elapsed_seconds() > config.timeout_seconds:
+            return False, f"Wall-clock timeout exceeded before dispatch: {self.elapsed_seconds():.1f}s > {config.timeout_seconds}s"
+
+        # 2. Worst-case cost check
+        worst_case_cost = self.calculate_call_cost(model, estimated_input_tokens, max_tokens)
+        if self.estimated_cost_usd + worst_case_cost > config.cost_cap_usd:
+            return False, (
+                f"Pre-dispatch budget reservation failed: estimated worst-case cost "
+                f"${worst_case_cost:.4f} exceeds remaining budget "
+                f"(${max(0.0, config.cost_cap_usd - self.estimated_cost_usd):.4f})"
+            )
+
+        # 3. Worst-case token check
+        worst_case_tokens = estimated_input_tokens + max_tokens
+        if self.total_tokens + worst_case_tokens > config.max_total_tokens:
+            return False, (
+                f"Pre-dispatch token reservation failed: worst-case tokens "
+                f"{worst_case_tokens} exceeds remaining allowance "
+                f"({max(0, config.max_total_tokens - self.total_tokens)})"
+            )
+
+        return True, None
+
     def record_usage(
         self,
         model: str,
-        prompt_tokens: int,
-        completion_tokens: int,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
         config: LiveEvalConfig | None = None,
     ) -> None:
         """Records token consumption and updates financial cost."""
-        call_cost = self.calculate_call_cost(model, prompt_tokens, completion_tokens)
-        self.prompt_tokens += prompt_tokens
-        self.completion_tokens += completion_tokens
-        self.total_tokens += prompt_tokens + completion_tokens
+        safe_prompt = prompt_tokens if (prompt_tokens is not None and prompt_tokens >= 0) else 1000
+        safe_completion = completion_tokens if (completion_tokens is not None and completion_tokens >= 0) else 500
+
+        call_cost = self.calculate_call_cost(model, safe_prompt, safe_completion)
+        self.prompt_tokens += safe_prompt
+        self.completion_tokens += safe_completion
+        self.total_tokens += safe_prompt + safe_completion
         self.estimated_cost_usd += call_cost
 
         if config is not None:
