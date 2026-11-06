@@ -99,3 +99,43 @@ def test_golden_e2e_rate_limiting_workflow(tmp_path: Path):
     md_content = report.format_markdown()
     assert "PASS" in md_content
     assert "E2E-GOLDEN-01" in md_content
+
+
+def test_golden_e2e_blocks_on_high_severity_finding(tmp_path: Path):
+    """Negative Test: Verifies that introducing a high-severity finding causes the workflow to FAIL.
+
+    Confirms that filtering for critical/high severities does not weaken regression detection,
+    and that genuine regressions properly block verification with status='failed'.
+    """
+    # 1. Setup isolated fixture and trust manager
+    fixture_root = tmp_path / "login_service_neg"
+    trust_dir = tmp_path / "trust_store_neg"
+    trust_mgr = CommandTrustManager(trust_dir)
+
+    create_login_api_fixture(fixture_root, trust_mgr=trust_mgr)
+
+    # 2. Patch that introduces a failing test (HIGH severity)
+    regressive_patch = {
+        **VALID_RATE_LIMIT_PATCH,
+        "tests/test_regression.py": """def test_regression_bug():
+    assert False, "Forced regression failure to verify blocking enforcement"
+""",
+    }
+
+    # 3. Initialize host agent adapter and run pipeline
+    adapter = DeterministicHostAgentAdapter(project_root=fixture_root, trust_mgr=trust_mgr)
+    trace, verify_report = adapter.run_workflow_pipeline(
+        task_prompt=GOLDEN_PROMPT,
+        patch=regressive_patch,
+        task_type="feature",
+        verify_scope="all",
+    )
+
+    # 4. Assert verification strictly failed due to blocking finding
+    assert verify_report["status"] == "failed", f"Expected verification failure, got: {verify_report}"
+    blocking_findings = [f for f in verify_report.get("findings", []) if f.get("severity") in {"critical", "high"}]
+    assert len(blocking_findings) >= 1
+    assert any("test" in f.get("rule_id", "").lower() or "tests" in f.get("check", "").lower() for f in blocking_findings)
+    assert "Fix" in verify_report.get("next_action", "")
+    assert "Ready for review" not in verify_report.get("next_action", "")
+

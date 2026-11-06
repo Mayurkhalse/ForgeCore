@@ -37,37 +37,27 @@ class FastAPI(Starlette):
         return decorator
 '''
 
-FASTAPI_TESTCLIENT_SHIM = '''"""Lightweight offline test client shim avoiding external sockets and event loops."""
+FASTAPI_TESTCLIENT_SHIM = '''"""Lightweight in-process ASGI test client shim avoiding external sockets and event loops."""
 from __future__ import annotations
 
 import inspect
 import json
+import urllib.parse
 from typing import Any
 
 
 class _TestResponse:
-    def __init__(self, status_code: int, json_data: Any = None, text: str = "") -> None:
+    def __init__(self, status_code: int, headers: dict[str, str], body: bytes) -> None:
         self.status_code = status_code
-        self._json_data = json_data
-        self.text = text
+        self.headers = headers
+        self.content = body
+        self.text = body.decode("utf-8", errors="replace")
+        try:
+            self._json_data = json.loads(self.text) if self.text else None
+        except Exception:
+            self._json_data = None
 
     def json(self) -> Any:
-        return self._json_data
-
-
-class _MockClient:
-    def __init__(self, host: str = "127.0.0.1") -> None:
-        self.host = host
-
-
-class _MockRequest:
-    def __init__(self, json_data: Any = None) -> None:
-        self._json_data = json_data
-        self.client = _MockClient("127.0.0.1")
-
-    async def json(self) -> Any:
-        if self._json_data is None:
-            raise ValueError("No JSON payload")
         return self._json_data
 
 
@@ -93,33 +83,69 @@ class TestClient:
     def __init__(self, app: Any) -> None:
         self.app = app
 
-    def get(self, path: str, **kwargs: Any) -> _TestResponse:
-        return self._dispatch("GET", path, **kwargs)
+    def get(self, url: str, **kwargs: Any) -> _TestResponse:
+        return self.request("GET", url, **kwargs)
 
-    def post(self, path: str, json: Any = None, **kwargs: Any) -> _TestResponse:
-        return self._dispatch("POST", path, json_data=json, **kwargs)
+    def post(self, url: str, **kwargs: Any) -> _TestResponse:
+        return self.request("POST", url, **kwargs)
 
-    def _dispatch(self, method: str, path: str, json_data: Any = None, **kwargs: Any) -> _TestResponse:
-        for route in getattr(self.app, "routes", []):
-            if getattr(route, "path", None) == path and method in getattr(route, "methods", []):
-                handler = route.endpoint
-                req = _MockRequest(json_data=json_data)
-                if inspect.iscoroutinefunction(handler):
-                    resp = _run_coro_sync(handler(req))
-                else:
-                    resp = handler(req)
-                body = getattr(resp, "body", b"")
-                status_code = getattr(resp, "status_code", 200)
-                try:
-                    parsed = json.loads(body.decode("utf-8")) if body else None
-                except Exception:
-                    parsed = None
-                return _TestResponse(
-                    status_code=status_code,
-                    json_data=parsed,
-                    text=body.decode("utf-8", errors="ignore"),
-                )
-        return _TestResponse(status_code=404, json_data={"detail": "Not Found"})
+    def request(self, method: str, url: str, **kwargs: Any) -> _TestResponse:
+        split = urllib.parse.urlsplit(url)
+        path = split.path or "/"
+        query = split.query or ""
+
+        headers = kwargs.get("headers")
+        req_headers: list[tuple[bytes, bytes]] = []
+        if headers:
+            for k, v in headers.items():
+                req_headers.append((k.lower().encode("latin-1"), str(v).encode("latin-1")))
+
+        body_bytes = b""
+        if "json" in kwargs and kwargs["json"] is not None:
+            body_bytes = json.dumps(kwargs["json"]).encode("utf-8")
+            req_headers.append((b"content-type", b"application/json"))
+            req_headers.append((b"content-length", str(len(body_bytes)).encode("ascii")))
+        elif "data" in kwargs and kwargs["data"] is not None:
+            d = kwargs["data"]
+            body_bytes = d if isinstance(d, bytes) else str(d).encode("utf-8")
+
+        scope: dict[str, Any] = {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.4"},
+            "http_version": "1.1",
+            "method": method.upper(),
+            "path": path,
+            "raw_path": path.encode("ascii"),
+            "query_string": query.encode("ascii"),
+            "headers": req_headers,
+            "client": ("127.0.0.1", 50000),
+            "server": ("testserver", 80),
+        }
+
+        req_complete = False
+
+        async def receive() -> dict[str, Any]:
+            nonlocal req_complete
+            if not req_complete:
+                req_complete = True
+                return {"type": "http.request", "body": body_bytes, "more_body": False}
+            return {"type": "http.disconnect"}
+
+        status_code = 500
+        resp_headers: dict[str, str] = {}
+        resp_body = bytearray()
+
+        async def send(message: dict[str, Any]) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                for k, v in message.get("headers", []):
+                    resp_headers[k.decode("latin-1").lower()] = v.decode("latin-1")
+            elif message["type"] == "http.response.body":
+                resp_body.extend(message.get("body", b""))
+
+        _run_coro_sync(self.app(scope, receive, send))
+        return _TestResponse(status_code, resp_headers, bytes(resp_body))
 
 
 __all__ = ["TestClient"]
